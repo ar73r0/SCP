@@ -1,0 +1,17 @@
+{
+  "checks": [
+    "Firewall",
+    "Defender",
+    "SMBv1",
+    "UAC",
+    "GuestAccount",
+    "LocalAdministrators",
+    "PasswordPolicy",
+    "BitLocker",
+    "WindowsUpdates",
+    "CriticalServices",
+    "OpenPorts",
+    "SystemInfo",
+    "DiskSpace"
+  ]
+}

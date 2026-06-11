@@ -1,0 +1,120 @@
+[CmdletBinding()]
+param(
+    [string]$ComputerListPath = (Join-Path $PSScriptRoot "Config/computers.csv"),
+    [string]$ChecksConfigPath = (Join-Path $PSScriptRoot "Config/checks.json"),
+    [string]$OutputRoot = $PSScriptRoot,
+    [int]$ThrottleLimit = 5,
+    [switch]$SkipHtmlReport
+)
+
+$ErrorActionPreference = "Stop"
+
+$moduleRoot = Join-Path $PSScriptRoot "Modules"
+$requiredModules = @(
+    "SecurityChecks.psm1",
+    "RemoteAudit.psm1",
+    "Scoring.psm1",
+    "Reporting.psm1"
+)
+
+foreach ($module in $requiredModules) {
+    Import-Module (Join-Path $moduleRoot $module) -Force
+}
+
+if (-not (Test-Path $ComputerListPath)) {
+    throw "Computerlijst niet gevonden: $ComputerListPath"
+}
+
+if (-not (Test-Path $ChecksConfigPath)) {
+    throw "Checks-configuratie niet gevonden: $ChecksConfigPath"
+}
+
+$config = Get-Content $ChecksConfigPath -Raw | ConvertFrom-Json
+$checks = @($config.checks | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
+if (-not $checks.Count) {
+    throw "Geen checks gevonden in $ChecksConfigPath"
+}
+
+$computers = Import-Csv $ComputerListPath | ForEach-Object {
+    $_.ComputerName
+} | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+if (-not $computers.Count) {
+    throw "Geen computers gevonden in $ComputerListPath"
+}
+
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$logsPath = Join-Path $OutputRoot "Logs"
+$reportsPath = Join-Path $OutputRoot "Reports"
+
+New-Item -ItemType Directory -Path $logsPath -Force | Out-Null
+New-Item -ItemType Directory -Path $reportsPath -Force | Out-Null
+
+Write-Host ""
+Write-Host "Windows Security Compliance Platform" -ForegroundColor Cyan
+Write-Host "Start audit: $timestamp"
+Write-Host "Aantal computers: $($computers.Count)"
+Write-Host "Checks: $($checks -join ', ')"
+Write-Host ""
+
+$computerResults = $computers | ForEach-Object -Parallel {
+    $computerName = $_
+    $checksToRun = $using:checks
+    $projectRoot = $using:PSScriptRoot
+
+    Import-Module (Join-Path $projectRoot "Modules/SecurityChecks.psm1") -Force
+    Import-Module (Join-Path $projectRoot "Modules/RemoteAudit.psm1") -Force
+
+    try {
+        Write-Host "[$computerName] Audit gestart..."
+        Invoke-ComputerAudit -ComputerName $computerName -Checks $checksToRun
+    }
+    catch {
+        [PSCustomObject]@{
+            ComputerName = $computerName
+            Reachable    = $false
+            IsLocal      = $false
+            Error        = $_.Exception.Message
+            Results      = @(
+                [PSCustomObject]@{
+                    ComputerName = $computerName
+                    Name         = "AuditExecution"
+                    Status       = "Failed"
+                    Message      = $_.Exception.Message
+                }
+            )
+        }
+    }
+} -ThrottleLimit $ThrottleLimit
+
+$flatResults = foreach ($entry in $computerResults) {
+    foreach ($result in $entry.Results) {
+        $result
+    }
+}
+
+$scoreSummary = Get-ComplianceSummary -Results $flatResults
+
+$jsonLogPath = Join-Path $logsPath "audit-$timestamp.json"
+$csvLogPath = Join-Path $logsPath "audit-$timestamp.csv"
+$htmlReportPath = Join-Path $reportsPath "audit-$timestamp.html"
+
+Write-AuditJsonLog -AuditResults $computerResults -Summary $scoreSummary -Path $jsonLogPath
+Write-AuditCsvLog -Results $flatResults -Path $csvLogPath
+
+if (-not $SkipHtmlReport) {
+    Write-AuditHtmlReport -AuditResults $computerResults -Summary $scoreSummary -Path $htmlReportPath
+}
+
+Write-Host ""
+Write-Host "Audit voltooid." -ForegroundColor Green
+Write-Host "JSON log: $jsonLogPath"
+Write-Host "CSV log : $csvLogPath"
+
+if (-not $SkipHtmlReport) {
+    Write-Host "HTML report: $htmlReportPath"
+}
+
+Write-Host ""
+$scoreSummary | Format-Table -AutoSize
