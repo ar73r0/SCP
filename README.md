@@ -47,6 +47,18 @@ TUI starten:
 .\Start-AuditTui.ps1
 ```
 
+Snelle setup op een Windows-VM:
+
+```powershell
+.\Setup-Project.ps1 -All
+```
+
+Of alleen de optionele TUI- en testmodules:
+
+```powershell
+.\Setup-Project.ps1 -InstallPester -InstallPwshSpectreConsole -ConfigureUtf8Profile
+```
+
 ## Opmerking
 
 De security checks zelf blijven gericht op Windows-systemen. In deze Linux-omgeving is PowerShell 7 lokaal toegevoegd om de Pester tests uit te voeren, maar de echte auditresultaten moeten nog steeds op een Windows-machine gevalideerd worden.

@@ -9,6 +9,7 @@ BeforeAll {
 Describe "Projectstructuur" {
     It "heeft de belangrijkste bestanden" {
         $required = @(
+            "Setup-Project.ps1",
             "Start-Audit.ps1",
             "Start-AuditTui.ps1",
             "Config/checks.json",
@@ -176,5 +177,11 @@ Describe "TUI helpers" {
         $savedChecks | Should -Contain "UAC"
         $savedComputers | Should -Contain "pc1"
         $savedComputers | Should -Contain "pc2"
+    }
+
+    It "kan detecteren of Spectre beschikbaar is" {
+        $availability = Test-SpectreAvailability
+
+        $availability | Should -BeOfType [bool]
     }
 }

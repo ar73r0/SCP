@@ -5,6 +5,10 @@ function Import-TuiDependencies {
     }
 }
 
+function Test-SpectreAvailability {
+    [bool](Get-Module -ListAvailable -Name PwshSpectreConsole | Select-Object -First 1)
+}
+
 function Get-TuiAuditDefaults {
     param(
         [Parameter(Mandatory)]
@@ -135,6 +139,161 @@ function Invoke-TuiAuditRun {
     }
 }
 
+function Read-BasicSelection {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Prompt,
+
+        [Parameter(Mandatory)]
+        [string[]]$Choices
+    )
+
+    Write-Host ""
+    Write-Host $Prompt -ForegroundColor Cyan
+    for ($index = 0; $index -lt $Choices.Count; $index++) {
+        Write-Host ("[{0}] {1}" -f ($index + 1), $Choices[$index])
+    }
+
+    while ($true) {
+        $rawChoice = Read-Host "Kies een nummer"
+        $choiceNumber = 0
+        if ([int]::TryParse($rawChoice, [ref]$choiceNumber) -and $choiceNumber -ge 1 -and $choiceNumber -le $Choices.Count) {
+            return $Choices[$choiceNumber - 1]
+        }
+
+        Write-Host "Ongeldige keuze, probeer opnieuw." -ForegroundColor Yellow
+    }
+}
+
+function Read-BasicMultiSelection {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Prompt,
+
+        [Parameter(Mandatory)]
+        [string[]]$Choices
+    )
+
+    Write-Host ""
+    Write-Host $Prompt -ForegroundColor Cyan
+    for ($index = 0; $index -lt $Choices.Count; $index++) {
+        Write-Host ("[{0}] {1}" -f ($index + 1), $Choices[$index])
+    }
+
+    while ($true) {
+        $rawChoice = Read-Host "Geef nummers gescheiden door komma's of typ 'all'"
+        if ($rawChoice -match '^\s*all\s*$') {
+            return @($Choices)
+        }
+
+        $tokens = @($rawChoice -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        if (-not $tokens.Count) {
+            Write-Host "Selecteer minstens één optie." -ForegroundColor Yellow
+            continue
+        }
+
+        $selectedIndexes = @()
+        $valid = $true
+        foreach ($token in $tokens) {
+            $choiceNumber = 0
+            if (-not [int]::TryParse($token, [ref]$choiceNumber) -or $choiceNumber -lt 1 -or $choiceNumber -gt $Choices.Count) {
+                $valid = $false
+                break
+            }
+
+            $selectedIndexes += ($choiceNumber - 1)
+        }
+
+        if (-not $valid) {
+            Write-Host "Ongeldige selectie, probeer opnieuw." -ForegroundColor Yellow
+            continue
+        }
+
+        return @($selectedIndexes | Select-Object -Unique | ForEach-Object { $Choices[$_] })
+    }
+}
+
+function Start-BasicAuditTui {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+
+    $defaults = Get-TuiAuditDefaults -ProjectRoot $ProjectRoot
+    $availableComputers = @($defaults.DefaultComputers)
+    if (-not $availableComputers.Count) {
+        $availableComputers = @("localhost")
+    }
+
+    Write-Host ""
+    Write-Host "Windows Security Compliance Platform" -ForegroundColor Cyan
+    Write-Host "PwshSpectreConsole niet gevonden. Basis TUI fallback wordt gebruikt." -ForegroundColor Yellow
+
+    $targetMode = Read-BasicSelection -Prompt "Welke targets wil je auditen?" -Choices @(
+        "Alle computers uit CSV"
+        "Een subset selecteren"
+    )
+
+    $selectedComputers = if ($targetMode -eq "Een subset selecteren") {
+        Read-BasicMultiSelection -Prompt "Selecteer de computers voor deze audit" -Choices $availableComputers
+    }
+    else {
+        $availableComputers
+    }
+
+    $selectedChecks = Read-BasicMultiSelection -Prompt "Selecteer de checks die je wil uitvoeren" -Choices $defaults.AvailableChecks
+
+    $outputMode = Read-BasicSelection -Prompt "Waar moeten logs en rapporten komen?" -Choices @(
+        "Projectmap gebruiken"
+        "Aangepast pad invoeren"
+    )
+
+    $outputRoot = if ($outputMode -eq "Aangepast pad invoeren") {
+        Read-Host "Geef het outputpad op"
+    }
+    else {
+        $defaults.OutputRoot
+    }
+
+    if ([string]::IsNullOrWhiteSpace($outputRoot)) {
+        $outputRoot = $defaults.OutputRoot
+    }
+
+    $htmlChoice = Read-BasicSelection -Prompt "HTML-rapport genereren?" -Choices @("Ja", "Nee")
+    $skipHtmlReport = ($htmlChoice -eq "Nee")
+
+    Write-Host ""
+    Write-Host "Audit samenvatting" -ForegroundColor Green
+    Write-Host "Targets     : $($selectedComputers -join ', ')"
+    Write-Host "Checks      : $($selectedChecks -join ', ')"
+    Write-Host "Output      : $outputRoot"
+    Write-Host "HTML report : $htmlChoice"
+
+    $confirmation = Read-BasicSelection -Prompt "Klaar om de audit te starten?" -Choices @(
+        "Audit starten"
+        "Annuleren"
+    )
+
+    if ($confirmation -ne "Audit starten") {
+        Write-Host "Audit geannuleerd." -ForegroundColor Yellow
+        return
+    }
+
+    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $selectedComputers -Checks $selectedChecks -OutputRoot $outputRoot -SkipHtmlReport:$skipHtmlReport
+
+    Write-Host ""
+    Write-Host "Audit afgerond" -ForegroundColor Green
+    if ($result.GeneratedLogs.Count) {
+        Write-Host "Nieuwe logs     : $($result.GeneratedLogs -join ', ')"
+    }
+
+    if ($result.GeneratedReports.Count) {
+        Write-Host "Nieuwe rapporten: $($result.GeneratedReports -join ', ')"
+    }
+
+    Write-Host "Tijdelijke sessiebestanden: $($result.Session.SessionRoot)"
+}
+
 function Start-SecurityAuditTui {
     param(
         [string]$ProjectRoot
@@ -142,9 +301,9 @@ function Start-SecurityAuditTui {
 
     Import-TuiDependencies
 
-    $module = Get-Module -ListAvailable -Name PwshSpectreConsole | Select-Object -First 1
-    if (-not $module) {
-        throw "PwshSpectreConsole is niet geinstalleerd. Installeer het met: Install-Module PwshSpectreConsole -Scope CurrentUser. Gebruik anders Start-Audit.ps1 voor de CLI-versie."
+    if (-not (Test-SpectreAvailability)) {
+        Start-BasicAuditTui -ProjectRoot $ProjectRoot
+        return
     }
 
     Import-Module PwshSpectreConsole -ErrorAction Stop
@@ -232,4 +391,4 @@ function Start-SecurityAuditTui {
     Write-SpectreHost "[grey]Tijdelijke sessiebestanden:[/] $($result.Session.SessionRoot)"
 }
 
-Export-ModuleMember -Function Start-SecurityAuditTui, Get-TuiAuditDefaults, New-TuiAuditSessionFiles, Invoke-TuiAuditRun
+Export-ModuleMember -Function Start-SecurityAuditTui, Get-TuiAuditDefaults, New-TuiAuditSessionFiles, Invoke-TuiAuditRun, Test-SpectreAvailability
