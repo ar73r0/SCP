@@ -4,7 +4,8 @@ param(
     [string]$ChecksConfigPath = (Join-Path $PSScriptRoot "Config/checks.json"),
     [string]$OutputRoot = $PSScriptRoot,
     [int]$ThrottleLimit = 5,
-    [switch]$SkipHtmlReport
+    [switch]$SkipHtmlReport,
+    [switch]$PassThru
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,6 +37,13 @@ if (-not $checks.Count) {
     throw "Geen checks gevonden in $ChecksConfigPath"
 }
 
+$validation = Test-CheckConfiguration -Checks $checks
+if (-not $validation.IsValid) {
+    $unknownChecks = $validation.UnknownChecks -join ", "
+    $knownChecks = $validation.KnownChecks -join ", "
+    throw "Onbekende checks in configuratie: $unknownChecks. Geldige checks zijn: $knownChecks"
+}
+
 $computers = Import-Csv $ComputerListPath | ForEach-Object {
     $_.ComputerName
 } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
@@ -56,6 +64,7 @@ Write-Host "Windows Security Compliance Platform" -ForegroundColor Cyan
 Write-Host "Start audit: $timestamp"
 Write-Host "Aantal computers: $($computers.Count)"
 Write-Host "Checks: $($checks -join ', ')"
+Write-Host "ThrottleLimit: $ThrottleLimit"
 Write-Host ""
 
 $computerResults = $computers | ForEach-Object -Parallel {
@@ -118,3 +127,16 @@ if (-not $SkipHtmlReport) {
 
 Write-Host ""
 $scoreSummary | Format-Table -AutoSize
+
+if ($PassThru) {
+    [PSCustomObject]@{
+        Timestamp      = $timestamp
+        ComputerCount  = $computers.Count
+        Checks         = $checks
+        JsonLogPath    = $jsonLogPath
+        CsvLogPath     = $csvLogPath
+        HtmlReportPath = if ($SkipHtmlReport) { $null } else { $htmlReportPath }
+        Summary        = $scoreSummary
+        AuditResults   = $computerResults
+    }
+}

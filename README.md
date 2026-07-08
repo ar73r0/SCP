@@ -4,15 +4,16 @@ Een modulair PowerShell-project voor het uitvoeren van security audits op Window
 
 ## Huidige status
 
-Deze eerste versie bevat:
+Deze versie bevat:
 
 - een CLI-startscript;
-- een basis-TUI entrypoint met nette fallback;
+- een werkende TUI-entrypoint via `PwshSpectreConsole`;
 - 13 security checks;
 - ondersteuning voor lokale en remote audits via PowerShell Remoting;
 - compliance scoring;
 - JSON, CSV en HTML rapportage;
-- een eerste Pester testbestand.
+- aanbevelingen en prioriteiten in het HTML-rapport;
+- Pester tests voor structuur, scoring, validatie, rapportage en TUI-helpers.
 
 ## Structuur
 
@@ -40,6 +41,12 @@ Of met eigen bestanden:
 .\Start-Audit.ps1 -ComputerListPath .\Config\computers.csv -ChecksConfigPath .\Config\checks.json
 ```
 
+TUI starten:
+
+```powershell
+.\Start-AuditTui.ps1
+```
+
 ## Opmerking
 
-De code is hier voorbereid, maar niet lokaal uitgevoerd in deze Linux-omgeving omdat `pwsh` hier niet beschikbaar is. Test daarom op een Windows-machine met PowerShell 7+.
+De security checks zelf blijven gericht op Windows-systemen. In deze Linux-omgeving is PowerShell 7 lokaal toegevoegd om de Pester tests uit te voeren, maar de echte auditresultaten moeten nog steeds op een Windows-machine gevalideerd worden.

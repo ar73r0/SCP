@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="9" errors="0" failures="0" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2026-07-09" time="00:44:24">
+  <environment clr-version="10.0.9" cwd="/home/aaronsengier/Documents/School/Sys/WindowsSecurityCompliancePlatform" platform="Linux" nunit-version="2.5.8.0" os-version="7.0.12-201.fc44.x86_64" user="aaronsengier" machine-name="legion" user-domain="" />
+  <culture-info current-culture="" current-uiculture="" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Success" success="True" time="0.9889" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="/home/aaronsengier/Documents/School/Sys/WindowsSecurityCompliancePlatform/Tests/SecurityAudit.Tests.ps1" executed="True" result="Success" success="True" time="0.9889" asserts="0" description="/home/aaronsengier/Documents/School/Sys/WindowsSecurityCompliancePlatform/Tests/SecurityAudit.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Projectstructuur" executed="True" result="Success" success="True" time="0.2131" asserts="0" description="Projectstructuur">
+            <results>
+              <test-case description="heeft de belangrijkste bestanden" name="Projectstructuur.heeft de belangrijkste bestanden" time="0.1759" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Check resultaat" executed="True" result="Success" success="True" time="0.256" asserts="0" description="Check resultaat">
+            <results>
+              <test-case description="maakt een uniform resultaatobject" name="Check resultaat.maakt een uniform resultaatobject" time="0.0394" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Compliance scoring" executed="True" result="Success" success="True" time="0.3011" asserts="0" description="Compliance scoring">
+            <results>
+              <test-case description="berekent een score per computer" name="Compliance scoring.berekent een score per computer" time="0.0419" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Check catalogus" executed="True" result="Success" success="True" time="0.3364" asserts="0" description="Check catalogus">
+            <results>
+              <test-case description="kent alle verwachte checks" name="Check catalogus.kent alle verwachte checks" time="0.0178" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="markeert onbekende checks als ongeldig" name="Check catalogus.markeert onbekende checks als ongeldig" time="0.0142" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="HTML rapportage" executed="True" result="Success" success="True" time="0.4238" asserts="0" description="HTML rapportage">
+            <results>
+              <test-case description="escaped HTML in foutmeldingen en toont aanbevelingen" name="HTML rapportage.escaped HTML in foutmeldingen en toont aanbevelingen" time="0.049" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="toont onbereikbare systemen in een aparte sectie" name="HTML rapportage.toont onbereikbare systemen in een aparte sectie" time="0.0123" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="TUI helpers" executed="True" result="Success" success="True" time="0.5205" asserts="0" description="TUI helpers">
+            <results>
+              <test-case description="laadt standaardwaarden uit de projectconfiguratie" name="TUI helpers.laadt standaardwaarden uit de projectconfiguratie" time="0.0292" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="maakt tijdelijke invoerbestanden voor een TUI-run" name="TUI helpers.maakt tijdelijke invoerbestanden voor een TUI-run" time="0.0618" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>

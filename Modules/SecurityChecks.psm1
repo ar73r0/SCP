@@ -15,6 +15,111 @@ function New-CheckResult {
     }
 }
 
+function Get-SecurityCheckCatalog {
+    [PSCustomObject]@{
+        Firewall = [PSCustomObject]@{
+            Function       = "Test-FirewallStatus"
+            Severity       = "High"
+            Recommendation = "Schakel alle Windows Firewall-profielen in en controleer groepsbeleid of lokale overrides."
+        }
+        Defender = [PSCustomObject]@{
+            Function       = "Test-DefenderStatus"
+            Severity       = "High"
+            Recommendation = "Zorg dat Microsoft Defender actief is, realtime bescherming aanstaat en signatures recent zijn."
+        }
+        SMBv1 = [PSCustomObject]@{
+            Function       = "Test-SMBv1Status"
+            Severity       = "High"
+            Recommendation = "Schakel SMBv1 uit tenzij een legacy afhankelijkheid dit tijdelijk vereist."
+        }
+        UAC = [PSCustomObject]@{
+            Function       = "Test-UacStatus"
+            Severity       = "High"
+            Recommendation = "Schakel User Account Control opnieuw in om privilege escalation te beperken."
+        }
+        GuestAccount = [PSCustomObject]@{
+            Function       = "Test-GuestAccountStatus"
+            Severity       = "Medium"
+            Recommendation = "Schakel het ingebouwde gastaccount uit om ongecontroleerde toegang te vermijden."
+        }
+        LocalAdministrators = [PSCustomObject]@{
+            Function       = "Test-LocalAdministratorsStatus"
+            Severity       = "Medium"
+            Recommendation = "Beperk lokale administrators tot strikt noodzakelijke accounts en review groepslidmaatschap."
+        }
+        PasswordPolicy = [PSCustomObject]@{
+            Function       = "Test-PasswordPolicyStatus"
+            Severity       = "High"
+            Recommendation = "Verhoog de minimale wachtwoordlengte en stem het beleid af op de organisatievereisten."
+        }
+        BitLocker = [PSCustomObject]@{
+            Function       = "Test-BitLockerStatus"
+            Severity       = "High"
+            Recommendation = "Activeer BitLocker op systeemschijven en controleer of herstelmethodes veilig zijn opgeslagen."
+        }
+        WindowsUpdates = [PSCustomObject]@{
+            Function       = "Test-WindowsUpdatesStatus"
+            Severity       = "High"
+            Recommendation = "Installeer recente beveiligingsupdates en controleer het updatebeleid op het systeem."
+        }
+        CriticalServices = [PSCustomObject]@{
+            Function       = "Test-CriticalServicesStatus"
+            Severity       = "High"
+            Recommendation = "Controleer waarom kritieke beveiligings- of beheerservices niet actief zijn en herstel de configuratie."
+        }
+        OpenPorts = [PSCustomObject]@{
+            Function       = "Test-OpenPortsStatus"
+            Severity       = "Medium"
+            Recommendation = "Beperk luisterende poorten tot noodzakelijke services en verifieer de bijhorende firewallregels."
+        }
+        SystemInfo = [PSCustomObject]@{
+            Function       = "Test-SystemInfoStatus"
+            Severity       = "Info"
+            Recommendation = "Gebruik deze systeeminformatie om bevindingen te contextualiseren en te documenteren."
+        }
+        DiskSpace = [PSCustomObject]@{
+            Function       = "Test-DiskSpaceStatus"
+            Severity       = "Medium"
+            Recommendation = "Maak vrije ruimte vrij of vergroot de systeemschijf om update- en logproblemen te voorkomen."
+        }
+    }
+}
+
+function Get-AvailableSecurityChecks {
+    $catalog = Get-SecurityCheckCatalog
+    @($catalog.PSObject.Properties.Name) | Sort-Object
+}
+
+function Resolve-CheckMetadata {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $catalog = Get-SecurityCheckCatalog
+    if ($catalog.PSObject.Properties.Name -contains $Name) {
+        return $catalog.$Name
+    }
+
+    $null
+}
+
+function Test-CheckConfiguration {
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Checks
+    )
+
+    $knownChecks = Get-AvailableSecurityChecks
+    $unknownChecks = @($Checks | Where-Object { $knownChecks -notcontains $_ } | Select-Object -Unique)
+
+    [PSCustomObject]@{
+        IsValid       = ($unknownChecks.Count -eq 0)
+        KnownChecks   = $knownChecks
+        UnknownChecks = $unknownChecks
+    }
+}
+
 function Test-FirewallStatus {
     param([string]$ComputerName)
 
@@ -253,25 +358,10 @@ function Invoke-SelectedChecks {
         [string[]]$Checks
     )
 
-    $mapping = @{
-        Firewall            = "Test-FirewallStatus"
-        Defender            = "Test-DefenderStatus"
-        SMBv1               = "Test-SMBv1Status"
-        UAC                 = "Test-UacStatus"
-        GuestAccount        = "Test-GuestAccountStatus"
-        LocalAdministrators = "Test-LocalAdministratorsStatus"
-        PasswordPolicy      = "Test-PasswordPolicyStatus"
-        BitLocker           = "Test-BitLockerStatus"
-        WindowsUpdates      = "Test-WindowsUpdatesStatus"
-        CriticalServices    = "Test-CriticalServicesStatus"
-        OpenPorts           = "Test-OpenPortsStatus"
-        SystemInfo          = "Test-SystemInfoStatus"
-        DiskSpace           = "Test-DiskSpaceStatus"
-    }
-
     foreach ($check in $Checks) {
-        if ($mapping.ContainsKey($check)) {
-            & $mapping[$check] -ComputerName $ComputerName
+        $metadata = Resolve-CheckMetadata -Name $check
+        if ($null -ne $metadata) {
+            & $metadata.Function -ComputerName $ComputerName
             continue
         }
 
