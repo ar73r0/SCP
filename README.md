@@ -41,6 +41,12 @@ Of met eigen bestanden:
 .\Start-Audit.ps1 -ComputerListPath .\Config\computers.csv -ChecksConfigPath .\Config\checks.json
 ```
 
+Als parallelle uitvoering tijdens een demo te weinig feedback geeft, kan je sequentieel draaien:
+
+```powershell
+.\Start-Audit.ps1 -DisableParallel
+```
+
 TUI starten:
 
 ```powershell

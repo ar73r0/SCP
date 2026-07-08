@@ -39,6 +39,10 @@ function Test-ComputerReachability {
 function Get-EmbeddedAuditSource {
     $functionsToEmbed = @(
         "New-CheckResult",
+        "Get-SecurityCheckCatalog",
+        "Get-AvailableSecurityChecks",
+        "Resolve-CheckMetadata",
+        "Test-CheckConfiguration",
         "Test-FirewallStatus",
         "Test-DefenderStatus",
         "Test-SMBv1Status",

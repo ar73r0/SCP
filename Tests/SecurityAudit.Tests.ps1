@@ -3,6 +3,7 @@ BeforeAll {
     Import-Module (Join-Path $projectRoot "Modules/SecurityChecks.psm1") -Force
     Import-Module (Join-Path $projectRoot "Modules/Scoring.psm1") -Force
     Import-Module (Join-Path $projectRoot "Modules/Reporting.psm1") -Force
+    Import-Module (Join-Path $projectRoot "Modules/RemoteAudit.psm1") -Force
     Import-Module (Join-Path $projectRoot "Modules/TUI.psm1") -Force
 }
 
@@ -70,6 +71,26 @@ Describe "Check catalogus" {
 
         $validation.IsValid | Should -BeFalse
         $validation.UnknownChecks | Should -Contain "BestaatNiet"
+    }
+}
+
+Describe "Audit runner" {
+    It "biedt een schakelaar om parallelle uitvoering uit te zetten" {
+        $command = Get-Command (Join-Path $projectRoot "Start-Audit.ps1")
+
+        $command.Parameters.Keys | Should -Contain "DisableParallel"
+    }
+}
+
+Describe "Remote audit embedding" {
+    It "stuurt metadata helpers mee naar remote systemen" {
+        $source = InModuleScope RemoteAudit {
+            Get-EmbeddedAuditSource
+        }
+
+        $source | Should -Match "function Get-SecurityCheckCatalog"
+        $source | Should -Match "function Resolve-CheckMetadata"
+        $source | Should -Match "function Invoke-SelectedChecks"
     }
 }
 

@@ -107,6 +107,7 @@ function Invoke-TuiAuditRun {
         [Parameter(Mandatory)]
         [string]$OutputRoot,
 
+        [switch]$DisableParallel,
         [switch]$SkipHtmlReport
     )
 
@@ -120,13 +121,17 @@ function Invoke-TuiAuditRun {
         PassThru         = $true
     }
 
+    if ($DisableParallel) {
+        $invokeParams.DisableParallel = $true
+    }
+
     if ($SkipHtmlReport) {
         $invokeParams.SkipHtmlReport = $true
     }
 
     $auditResult = & $auditScript @invokeParams
-    $generatedLogs = @($auditResult.JsonLogPath, $auditResult.CsvLogPath | Where-Object { $_ -and (Test-Path $_) })
-    $generatedReports = @($auditResult.HtmlReportPath | Where-Object { $_ -and (Test-Path $_) })
+    $generatedLogs = @($auditResult.JsonLogPath, $auditResult.CsvLogPath) | Where-Object { $_ -and (Test-Path $_) }
+    $generatedReports = @($auditResult.HtmlReportPath) | Where-Object { $_ -and (Test-Path $_) }
     $newFiles = @($generatedLogs + $generatedReports)
 
     [PSCustomObject]@{
@@ -262,12 +267,19 @@ function Start-BasicAuditTui {
     $htmlChoice = Read-BasicSelection -Prompt "HTML-rapport genereren?" -Choices @("Ja", "Nee")
     $skipHtmlReport = ($htmlChoice -eq "Nee")
 
+    $executionChoice = Read-BasicSelection -Prompt "Welke uitvoeringsmodus wil je gebruiken?" -Choices @(
+        "Automatisch"
+        "Sequentieel"
+    )
+    $disableParallel = ($executionChoice -eq "Sequentieel")
+
     Write-Host ""
     Write-Host "Audit samenvatting" -ForegroundColor Green
     Write-Host "Targets     : $($selectedComputers -join ', ')"
     Write-Host "Checks      : $($selectedChecks -join ', ')"
     Write-Host "Output      : $outputRoot"
     Write-Host "HTML report : $htmlChoice"
+    Write-Host "Uitvoering  : $executionChoice"
 
     $confirmation = Read-BasicSelection -Prompt "Klaar om de audit te starten?" -Choices @(
         "Audit starten"
@@ -279,7 +291,7 @@ function Start-BasicAuditTui {
         return
     }
 
-    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $selectedComputers -Checks $selectedChecks -OutputRoot $outputRoot -SkipHtmlReport:$skipHtmlReport
+    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $selectedComputers -Checks $selectedChecks -OutputRoot $outputRoot -DisableParallel:$disableParallel -SkipHtmlReport:$skipHtmlReport
 
     Write-Host ""
     Write-Host "Audit afgerond" -ForegroundColor Green
@@ -353,11 +365,18 @@ function Start-SecurityAuditTui {
     )
     $skipHtmlReport = ($htmlChoice -eq "Nee")
 
+    $executionChoice = Read-SpectreSelection -Message "Welke uitvoeringsmodus wil je gebruiken?" -Choices @(
+        "Automatisch"
+        "Sequentieel"
+    )
+    $disableParallel = ($executionChoice -eq "Sequentieel")
+
     Write-SpectreRule -Title "[green]Audit samenvatting[/]"
     Write-SpectreHost "Targets     : [green]$($selectedComputers -join ', ')[/]"
     Write-SpectreHost "Checks      : [green]$($selectedChecks -join ', ')[/]"
     Write-SpectreHost "Output      : [green]$outputRoot[/]"
     Write-SpectreHost "HTML report : [green]$htmlChoice[/]"
+    Write-SpectreHost "Uitvoering  : [green]$executionChoice[/]"
 
     $confirmation = Read-SpectreSelection -Message "Klaar om de audit te starten?" -Choices @(
         "Audit starten"
@@ -374,7 +393,7 @@ function Start-SecurityAuditTui {
     }
 
     Write-SpectreRule -Title "[blue]Audit uitvoering[/]"
-    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $preparedSession.ComputerNames -Checks $preparedSession.Checks -OutputRoot $outputRoot -SkipHtmlReport:$skipHtmlReport
+    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $preparedSession.ComputerNames -Checks $preparedSession.Checks -OutputRoot $outputRoot -DisableParallel:$disableParallel -SkipHtmlReport:$skipHtmlReport
 
     Write-SpectreRule -Title "[green]Audit afgerond[/]"
     if ($result.GeneratedLogs.Count) {

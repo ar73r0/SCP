@@ -3,7 +3,9 @@ param(
     [string]$ComputerListPath = (Join-Path $PSScriptRoot "Config/computers.csv"),
     [string]$ChecksConfigPath = (Join-Path $PSScriptRoot "Config/checks.json"),
     [string]$OutputRoot = $PSScriptRoot,
+    [ValidateRange(1, 64)]
     [int]$ThrottleLimit = 5,
+    [switch]$DisableParallel,
     [switch]$SkipHtmlReport,
     [switch]$PassThru
 )
@@ -99,7 +101,7 @@ Write-Host "ThrottleLimit: $ThrottleLimit"
 Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
 Write-Host ""
 
-$supportsParallel = $PSVersionTable.PSVersion.Major -ge 7
+$supportsParallel = ($PSVersionTable.PSVersion.Major -ge 7) -and (-not $DisableParallel)
 if ($supportsParallel) {
     Write-Host "Uitvoering: parallel" -ForegroundColor DarkCyan
     $computerResults = $computers | ForEach-Object -Parallel {
@@ -133,7 +135,13 @@ if ($supportsParallel) {
     } -ThrottleLimit $ThrottleLimit
 }
 else {
-    Write-Host "Uitvoering: sequentieel (PowerShell 5.1 compatibiliteit)" -ForegroundColor Yellow
+    if ($DisableParallel) {
+        Write-Host "Uitvoering: sequentieel (parallel uitgeschakeld)" -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "Uitvoering: sequentieel (PowerShell 5.1 compatibiliteit)" -ForegroundColor Yellow
+    }
+
     $computerResults = foreach ($computerName in $computers) {
         Invoke-AuditForComputer -ComputerName $computerName -Checks $checks
     }
@@ -168,7 +176,7 @@ if (-not $SkipHtmlReport) {
 }
 
 Write-Host ""
-$scoreSummary | Format-Table -AutoSize
+$scoreSummary | Format-Table -AutoSize | Out-Host
 
 if ($PassThru) {
     [PSCustomObject]@{
