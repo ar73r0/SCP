@@ -144,7 +144,7 @@ function Start-SecurityAuditTui {
 
     $module = Get-Module -ListAvailable -Name PwshSpectreConsole | Select-Object -First 1
     if (-not $module) {
-        throw "PwshSpectreConsole is niet geïnstalleerd. Installeer het eerst of gebruik Start-Audit.ps1 voor de CLI-versie."
+        throw "PwshSpectreConsole is niet geinstalleerd. Installeer het met: Install-Module PwshSpectreConsole -Scope CurrentUser. Gebruik anders Start-Audit.ps1 voor de CLI-versie."
     }
 
     Import-Module PwshSpectreConsole -ErrorAction Stop

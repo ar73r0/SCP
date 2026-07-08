@@ -10,6 +10,37 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Invoke-AuditForComputer {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ComputerName,
+
+        [Parameter(Mandatory)]
+        [string[]]$Checks
+    )
+
+    try {
+        Write-Host "[$ComputerName] Audit gestart..."
+        Invoke-ComputerAudit -ComputerName $ComputerName -Checks $Checks
+    }
+    catch {
+        [PSCustomObject]@{
+            ComputerName = $ComputerName
+            Reachable    = $false
+            IsLocal      = $false
+            Error        = $_.Exception.Message
+            Results      = @(
+                [PSCustomObject]@{
+                    ComputerName = $ComputerName
+                    Name         = "AuditExecution"
+                    Status       = "Failed"
+                    Message      = $_.Exception.Message
+                }
+            )
+        }
+    }
+}
+
 $moduleRoot = Join-Path $PSScriptRoot "Modules"
 $requiredModules = @(
     "SecurityChecks.psm1",
@@ -65,37 +96,48 @@ Write-Host "Start audit: $timestamp"
 Write-Host "Aantal computers: $($computers.Count)"
 Write-Host "Checks: $($checks -join ', ')"
 Write-Host "ThrottleLimit: $ThrottleLimit"
+Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
 Write-Host ""
 
-$computerResults = $computers | ForEach-Object -Parallel {
-    $computerName = $_
-    $checksToRun = $using:checks
-    $projectRoot = $using:PSScriptRoot
+$supportsParallel = $PSVersionTable.PSVersion.Major -ge 7
+if ($supportsParallel) {
+    Write-Host "Uitvoering: parallel" -ForegroundColor DarkCyan
+    $computerResults = $computers | ForEach-Object -Parallel {
+        $computerName = $_
+        $checksToRun = $using:checks
+        $projectRoot = $using:PSScriptRoot
 
-    Import-Module (Join-Path $projectRoot "Modules/SecurityChecks.psm1") -Force
-    Import-Module (Join-Path $projectRoot "Modules/RemoteAudit.psm1") -Force
+        Import-Module (Join-Path $projectRoot "Modules/SecurityChecks.psm1") -Force
+        Import-Module (Join-Path $projectRoot "Modules/RemoteAudit.psm1") -Force
 
-    try {
-        Write-Host "[$computerName] Audit gestart..."
-        Invoke-ComputerAudit -ComputerName $computerName -Checks $checksToRun
-    }
-    catch {
-        [PSCustomObject]@{
-            ComputerName = $computerName
-            Reachable    = $false
-            IsLocal      = $false
-            Error        = $_.Exception.Message
-            Results      = @(
-                [PSCustomObject]@{
-                    ComputerName = $computerName
-                    Name         = "AuditExecution"
-                    Status       = "Failed"
-                    Message      = $_.Exception.Message
-                }
-            )
+        try {
+            Write-Host "[$computerName] Audit gestart..."
+            Invoke-ComputerAudit -ComputerName $computerName -Checks $checksToRun
         }
+        catch {
+            [PSCustomObject]@{
+                ComputerName = $computerName
+                Reachable    = $false
+                IsLocal      = $false
+                Error        = $_.Exception.Message
+                Results      = @(
+                    [PSCustomObject]@{
+                        ComputerName = $computerName
+                        Name         = "AuditExecution"
+                        Status       = "Failed"
+                        Message      = $_.Exception.Message
+                    }
+                )
+            }
+        }
+    } -ThrottleLimit $ThrottleLimit
+}
+else {
+    Write-Host "Uitvoering: sequentieel (PowerShell 5.1 compatibiliteit)" -ForegroundColor Yellow
+    $computerResults = foreach ($computerName in $computers) {
+        Invoke-AuditForComputer -ComputerName $computerName -Checks $checks
     }
-} -ThrottleLimit $ThrottleLimit
+}
 
 $flatResults = foreach ($entry in $computerResults) {
     foreach ($result in $entry.Results) {
