@@ -40,6 +40,18 @@ Describe "Check resultaat" {
     }
 }
 
+Describe "Host compatibiliteit" {
+    It "markeert Windows-specifieke checks als skipped op een niet-Windows host" {
+        InModuleScope SecurityChecks {
+            Mock Test-IsWindowsAuditHost { $false }
+            $result = Test-FirewallStatus -ComputerName "localhost"
+
+            $result.Status | Should -Be "Skipped"
+            $result.Message | Should -Match "Windows-host"
+        }
+    }
+}
+
 Describe "Compliance scoring" {
     It "berekent een score per computer" {
         $results = @(

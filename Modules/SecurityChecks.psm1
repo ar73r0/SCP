@@ -15,6 +15,43 @@ function New-CheckResult {
     }
 }
 
+function Test-IsWindowsAuditHost {
+    if (Get-Variable -Name IsWindows -Scope Global -ErrorAction SilentlyContinue) {
+        return [bool]$global:IsWindows
+    }
+
+    try {
+        return [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+    }
+    catch {
+        return ($env:OS -eq "Windows_NT")
+    }
+}
+
+function Test-RequiredCommand {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    [bool](Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
+function New-UnsupportedCheckResult {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ComputerName,
+
+        [Parameter(Mandatory)]
+        [string]$Name,
+
+        [Parameter(Mandatory)]
+        [string]$Reason
+    )
+
+    New-CheckResult -ComputerName $ComputerName -Name $Name -Status "Skipped" -Message $Reason
+}
+
 function Get-SecurityCheckCatalog {
     [PSCustomObject]@{
         Firewall = [PSCustomObject]@{
@@ -123,6 +160,14 @@ function Test-CheckConfiguration {
 function Test-FirewallStatus {
     param([string]$ComputerName)
 
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "Firewall" -Reason "Firewall-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-NetFirewallProfile")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "Firewall" -Reason "Get-NetFirewallProfile is niet beschikbaar op deze host."
+    }
+
     try {
         $profiles = Get-NetFirewallProfile -ErrorAction Stop
         $disabled = @($profiles | Where-Object { -not $_.Enabled })
@@ -142,6 +187,14 @@ function Test-FirewallStatus {
 function Test-DefenderStatus {
     param([string]$ComputerName)
 
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "Defender" -Reason "Defender-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-MpComputerStatus")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "Defender" -Reason "Get-MpComputerStatus is niet beschikbaar op deze host."
+    }
+
     try {
         $status = Get-MpComputerStatus -ErrorAction Stop
         if ($status.RealTimeProtectionEnabled -and $status.AntivirusSignatureAge -le 7) {
@@ -159,6 +212,14 @@ function Test-DefenderStatus {
 function Test-SMBv1Status {
     param([string]$ComputerName)
 
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "SMBv1" -Reason "SMBv1-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-WindowsOptionalFeature")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "SMBv1" -Reason "Get-WindowsOptionalFeature is niet beschikbaar op deze host."
+    }
+
     try {
         $feature = Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -ErrorAction Stop
         if ($feature.State -eq "Disabled") {
@@ -174,6 +235,10 @@ function Test-SMBv1Status {
 
 function Test-UacStatus {
     param([string]$ComputerName)
+
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "UAC" -Reason "UAC-check vereist een Windows-host."
+    }
 
     try {
         $value = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "EnableLUA" -ErrorAction Stop
@@ -191,6 +256,14 @@ function Test-UacStatus {
 function Test-GuestAccountStatus {
     param([string]$ComputerName)
 
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "GuestAccount" -Reason "GuestAccount-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-LocalUser")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "GuestAccount" -Reason "Get-LocalUser is niet beschikbaar op deze host."
+    }
+
     try {
         $guest = Get-LocalUser -Name "Guest" -ErrorAction Stop
         if (-not $guest.Enabled) {
@@ -206,6 +279,14 @@ function Test-GuestAccountStatus {
 
 function Test-LocalAdministratorsStatus {
     param([string]$ComputerName)
+
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "LocalAdministrators" -Reason "LocalAdministrators-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-LocalGroupMember")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "LocalAdministrators" -Reason "Get-LocalGroupMember is niet beschikbaar op deze host."
+    }
 
     try {
         $admins = @(Get-LocalGroupMember -Group "Administrators" -ErrorAction Stop)
@@ -225,6 +306,14 @@ function Test-LocalAdministratorsStatus {
 
 function Test-PasswordPolicyStatus {
     param([string]$ComputerName)
+
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "PasswordPolicy" -Reason "PasswordPolicy-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "net")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "PasswordPolicy" -Reason "Het hulpprogramma 'net' is niet beschikbaar op deze host."
+    }
 
     try {
         $lines = net accounts
@@ -249,6 +338,14 @@ function Test-PasswordPolicyStatus {
 function Test-BitLockerStatus {
     param([string]$ComputerName)
 
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "BitLocker" -Reason "BitLocker-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-BitLockerVolume")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "BitLocker" -Reason "Get-BitLockerVolume is niet beschikbaar op deze host."
+    }
+
     try {
         $drive = Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop
         if ($drive.ProtectionStatus -eq "On") {
@@ -264,6 +361,14 @@ function Test-BitLockerStatus {
 
 function Test-WindowsUpdatesStatus {
     param([string]$ComputerName)
+
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "WindowsUpdates" -Reason "WindowsUpdates-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-CimInstance")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "WindowsUpdates" -Reason "Get-CimInstance is niet beschikbaar op deze host."
+    }
 
     try {
         $recent = Get-CimInstance -ClassName Win32_QuickFixEngineering -ErrorAction Stop | Where-Object {
@@ -283,6 +388,14 @@ function Test-WindowsUpdatesStatus {
 
 function Test-CriticalServicesStatus {
     param([string]$ComputerName)
+
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "CriticalServices" -Reason "CriticalServices-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-Service")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "CriticalServices" -Reason "Get-Service is niet beschikbaar op deze host."
+    }
 
     try {
         $requiredServices = "MpsSvc", "WinDefend", "wuauserv", "WinRM"
@@ -304,6 +417,14 @@ function Test-CriticalServicesStatus {
 function Test-OpenPortsStatus {
     param([string]$ComputerName)
 
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "OpenPorts" -Reason "OpenPorts-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-NetTCPConnection")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "OpenPorts" -Reason "Get-NetTCPConnection is niet beschikbaar op deze host."
+    }
+
     try {
         $ports = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Sort-Object -Property LocalPort -Unique)
         $count = $ports.Count
@@ -323,6 +444,14 @@ function Test-OpenPortsStatus {
 function Test-SystemInfoStatus {
     param([string]$ComputerName)
 
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "SystemInfo" -Reason "SystemInfo-check vereist een Windows-host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-CimInstance")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "SystemInfo" -Reason "Get-CimInstance is niet beschikbaar op deze host."
+    }
+
     try {
         $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
         $message = "{0} build {1}, laatste boot {2}" -f $os.Caption, $os.BuildNumber, $os.LastBootUpTime
@@ -335,6 +464,18 @@ function Test-SystemInfoStatus {
 
 function Test-DiskSpaceStatus {
     param([string]$ComputerName)
+
+    if (-not (Test-IsWindowsAuditHost)) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "DiskSpace" -Reason "DiskSpace-check vereist een Windows-host."
+    }
+
+    if (-not $env:SystemDrive) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "DiskSpace" -Reason "SystemDrive is niet beschikbaar op deze host."
+    }
+
+    if (-not (Test-RequiredCommand -Name "Get-CimInstance")) {
+        return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "DiskSpace" -Reason "Get-CimInstance is niet beschikbaar op deze host."
+    }
 
     try {
         $systemDrive = $env:SystemDrive.TrimEnd(":")

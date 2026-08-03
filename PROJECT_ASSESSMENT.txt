@@ -1,50 +1,55 @@
-Windows Security Compliance Platform - assessment and next iteration
+Windows Security Compliance Platform
+Projectbeoordeling en resterende aandachtspunten
 
-Current verdict
+Algemene beoordeling
 
-This version is much closer to the stated MVP and now includes a real TUI flow, stronger reporting, and broader automated tests.
+De huidige versie van het project sluit goed aan bij het vooropgestelde MVP. De basisfunctionaliteit is aanwezig, de code is opgesplitst in duidelijke modules en de tool levert bruikbare uitvoer op in JSON, CSV en HTML. Ook de TUI-startflow en de Pester-tests zijn aanwezig.
 
-What already matches the MVP well
+Sterke punten van de huidige versie
 
-- CLI entrypoint exists and orchestrates the audit flow.
-- The 13 promised security checks are implemented.
-- Local and remote auditing are implemented through PowerShell Remoting.
-- Multiple systems are processed in parallel.
-- Checks are driven from JSON configuration.
-- JSON, CSV, and HTML outputs are generated.
-- Compliance scoring is present.
-- Try/catch based error handling is present.
-- A first Pester test file exists.
+- Het project heeft een duidelijke en logische structuur.
+- De CLI-entrypoint en TUI-entrypoint zijn aanwezig.
+- De 13 voorziene controles zijn geïmplementeerd.
+- Lokale en remote auditing worden ondersteund.
+- De lijst met controles wordt ingelezen vanuit JSON.
+- Resultaten worden geëxporteerd naar JSON, CSV en HTML.
+- Er is een compliance score per computer.
+- Er is foutafhandeling voorzien.
+- Er zijn Pester-tests aanwezig voor de belangrijkste onderdelen.
 
-What still prevents a full "all demands satisfied" conclusion
+Wat nog aandacht vraagt
 
-- The tests are too limited to demonstrate a stable MVP.
-- The current report is functional but not yet polished enough to feel beyond-minimum.
-- The project still needs validation on actual Windows targets to prove the full audit flow end to end.
+- De belangrijkste openstaande stap is validatie op echte Windows-systemen.
+- Voor een sterke eindindiening is technisch bewijs nodig, zoals screenshots, testresultaten en voorbeeldrapporten.
+- De documentatie moet duidelijk onderscheiden wat al afgewerkt is en wat nog optioneel of toekomstig is.
 
-Best next improvements
+Wat al verbeterd werd in deze repository
 
-1. Validate on real Windows systems.
-   Run the tool on local and remote Windows machines and capture proof of the full execution flow.
+- Rapportage is duidelijker gemaakt met aanbevelingen en prioriteiten.
+- Validatie van checks werd strenger gemaakt.
+- De TUI-flow werd bruikbaar gemaakt voor een echte auditrun.
+- De testdekking werd uitgebreid.
+- Niet-Windows hosts geven Windows-specifieke checks nu correct weer als `Skipped`.
+- Er is een helper toegevoegd om sneller een Windows test-VM op te zetten via libvirt.
 
-2. Improve report quality even further.
-   Add severity labels, recommendations, safe HTML escaping, and better summary blocks.
+Resterende prioriteiten
 
-3. Strengthen validation.
-   Validate unknown checks early and fail with clear messages instead of silently allowing bad configuration.
+1. Testen op Windows
+Voer de audit uit op minstens één lokale Windows-machine en idealiter ook op een tweede remote target via WinRM.
 
-4. Expand Pester coverage.
-   Add tests for report generation, scoring, config validation, unknown checks, failure scenarios, and more orchestration behavior.
+2. Bewijs verzamelen
+Bewaar screenshots van:
+- de terminaluitvoer;
+- de TUI;
+- het HTML-rapport;
+- een audit met warnings of failures.
 
-5. Add remediation guidance or optional hardening.
-   Even if automatic hardening stays optional, the tool should explain how to fix failed checks.
+3. Einddocumentatie afwerken
+Formuleer in de documenten duidelijk:
+- welke onderdelen effectief werken;
+- welke onderdelen getest zijn;
+- welke uitbreidingen buiten het MVP vallen.
 
-6. Prepare stronger submission evidence.
-   Include screenshots, sample reports, and test runs from a Windows machine.
+Conclusie
 
-Iteration started in this repository
-
-- Reporting improvements
-- Safer and clearer check validation
-- Broader Pester coverage
-- Functional TUI flow for selecting targets, checks, and output settings
+De projectbasis is voldoende sterk en geloofwaardig. De grootste meerwaarde die nu nog toegevoegd kan worden, zit niet in een volledige herwerking van de code, maar in nette documentatie en aantoonbare validatie op Windows-systemen.
