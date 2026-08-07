@@ -1,3 +1,11 @@
+function Import-SecurityChecksModule {
+    $securityChecksModule = Join-Path $PSScriptRoot "SecurityChecks.psm1"
+
+    if (-not (Get-Module -Name SecurityChecks)) {
+        Import-Module $securityChecksModule -Force
+    }
+}
+
 function ConvertTo-HtmlSafeText {
     param([AllowNull()][string]$Value)
 
@@ -22,6 +30,8 @@ function Get-StatusBadgeClass {
 function Get-ReportRecommendation {
     param([string]$CheckName)
 
+    Import-SecurityChecksModule
+
     $resolver = Get-Command Resolve-CheckMetadata -ErrorAction SilentlyContinue
     $metadata = if ($resolver) { Resolve-CheckMetadata -Name $CheckName } else { $null }
     if ($null -eq $metadata) {
@@ -33,6 +43,8 @@ function Get-ReportRecommendation {
 
 function Get-ReportSeverity {
     param([string]$CheckName)
+
+    Import-SecurityChecksModule
 
     $resolver = Get-Command Resolve-CheckMetadata -ErrorAction SilentlyContinue
     $metadata = if ($resolver) { Resolve-CheckMetadata -Name $CheckName } else { $null }
