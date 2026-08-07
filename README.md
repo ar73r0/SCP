@@ -86,7 +86,7 @@ Een effectieve VM-aanmaak start je met:
 pwsh ./New-WindowsLabVm.ps1 -VmName wscp-win11-audit-01 -StartInstall
 ```
 
-Meer uitleg staat in [LAB_SETUP.md](/home/aaronsengier/Documents/School/Sys/WindowsSecurityCompliancePlatform/LAB_SETUP.md).
+Meer uitleg staat in LAB_SETUP.md.
 
 ## Belangrijke opmerking
 
