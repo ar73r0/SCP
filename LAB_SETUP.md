@@ -18,6 +18,8 @@ Het doel van deze testopstelling is om aan te tonen dat:
 - een Windows ISO
 - een actief `default` libvirt netwerk
 
+De helper gebruikt standaard een `e1000e` netwerkkaart en `sata` diskbus zodat Windows direct drivers heeft tijdens installatie. Voor performance-tests kan je later nog bewust `virtio` kiezen.
+
 ## VM voorbereiden
 
 Controleer eerst het gegenereerde commando:
@@ -30,6 +32,12 @@ Maak daarna effectief een VM aan:
 
 ```powershell
 pwsh ./New-WindowsLabVm.ps1 -VmName wscp-win11-audit-01 -StartInstall
+```
+
+Expliciet toch met VirtIO testen:
+
+```powershell
+pwsh ./New-WindowsLabVm.ps1 -VmName wscp-win11-virtio-01 -NetworkModel virtio -DiskBus virtio -StartInstall
 ```
 
 ## Aanbevolen testopstelling

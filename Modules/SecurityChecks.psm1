@@ -510,4 +510,4 @@ function Invoke-SelectedChecks {
     }
 }
 
-Export-ModuleMember -Function *-*, New-CheckResult
+Export-ModuleMember -Function *-*, New-CheckResult, Invoke-SelectedChecks

@@ -6,6 +6,10 @@ param(
     [int]$DiskSizeGb = 64,
     [int]$MemoryMb = 8192,
     [int]$CpuCount = 4,
+    [ValidateSet("e1000e", "virtio", "rtl8139")]
+    [string]$NetworkModel = "e1000e",
+    [ValidateSet("sata", "virtio")]
+    [string]$DiskBus = "sata",
     [switch]$StartInstall
 )
 
@@ -59,10 +63,10 @@ $virtInstallArgs = @(
     "--memory", $MemoryMb,
     "--vcpus", $CpuCount,
     "--cpu", "host",
-    "--disk", "path=$diskPath,format=qcow2,bus=virtio",
+    "--disk", "path=$diskPath,format=qcow2,bus=$DiskBus",
     "--cdrom", $IsoPath,
     "--os-variant", "win11",
-    "--network", "network=default,model=virtio",
+    "--network", "network=default,model=$NetworkModel",
     "--graphics", "spice",
     "--video", "qxl",
     "--channel", "spicevmc",
