@@ -1,3 +1,11 @@
+function Import-SecurityChecksModule {
+    $securityChecksModule = Join-Path $PSScriptRoot "SecurityChecks.psm1"
+
+    if (-not (Get-Module -Name SecurityChecks)) {
+        Import-Module $securityChecksModule -Force
+    }
+}
+
 function Test-ComputerReachability {
     param([string]$ComputerName)
 
@@ -37,6 +45,8 @@ function Test-ComputerReachability {
 }
 
 function Get-EmbeddedAuditSource {
+    Import-SecurityChecksModule
+
     $functionsToEmbed = @(
         "New-CheckResult",
         "Get-SecurityCheckCatalog",
@@ -73,6 +83,8 @@ function Invoke-ComputerAudit {
         [string[]]$Checks
     )
 
+    Import-SecurityChecksModule
+
     $probe = Test-ComputerReachability -ComputerName $ComputerName
     if (-not $probe.Reachable) {
         return [PSCustomObject]@{
@@ -92,7 +104,7 @@ function Invoke-ComputerAudit {
     }
 
     if ($probe.IsLocal) {
-        $results = @(Invoke-SelectedChecks -ComputerName $ComputerName -Checks $Checks)
+        $results = @(SecurityChecks\Invoke-SelectedChecks -ComputerName $ComputerName -Checks $Checks)
         return [PSCustomObject]@{
             ComputerName = $ComputerName
             Reachable    = $true
