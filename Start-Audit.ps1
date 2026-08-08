@@ -5,6 +5,7 @@ param(
     [string]$OutputRoot = $PSScriptRoot,
     [ValidateRange(1, 64)]
     [int]$ThrottleLimit = 5,
+    [pscredential]$Credential,
     [switch]$DisableParallel,
     [switch]$SkipHtmlReport,
     [switch]$PassThru
@@ -18,12 +19,14 @@ function Invoke-AuditForComputer {
         [string]$ComputerName,
 
         [Parameter(Mandatory)]
-        [string[]]$Checks
+        [string[]]$Checks,
+
+        [pscredential]$Credential
     )
 
     try {
         Write-Host "[$ComputerName] Audit gestart..."
-        Invoke-ComputerAudit -ComputerName $ComputerName -Checks $Checks
+        Invoke-ComputerAudit -ComputerName $ComputerName -Checks $Checks -Credential $Credential
     }
     catch {
         [PSCustomObject]@{
@@ -108,13 +111,14 @@ if ($supportsParallel) {
         $computerName = $_
         $checksToRun = $using:checks
         $projectRoot = $using:PSScriptRoot
+        $credentialToUse = $using:Credential
 
         Import-Module (Join-Path $projectRoot "Modules/SecurityChecks.psm1") -Force
         Import-Module (Join-Path $projectRoot "Modules/RemoteAudit.psm1") -Force
 
         try {
             Write-Host "[$computerName] Audit gestart..."
-            Invoke-ComputerAudit -ComputerName $computerName -Checks $checksToRun
+            Invoke-ComputerAudit -ComputerName $computerName -Checks $checksToRun -Credential $credentialToUse
         }
         catch {
             [PSCustomObject]@{
@@ -143,7 +147,7 @@ else {
     }
 
     $computerResults = foreach ($computerName in $computers) {
-        Invoke-AuditForComputer -ComputerName $computerName -Checks $checks
+        Invoke-AuditForComputer -ComputerName $computerName -Checks $checks -Credential $Credential
     }
 }
 

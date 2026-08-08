@@ -7,7 +7,10 @@ function Import-SecurityChecksModule {
 }
 
 function Test-ComputerReachability {
-    param([string]$ComputerName)
+    param(
+        [string]$ComputerName,
+        [pscredential]$Credential
+    )
 
     $localNames = @(
         ".",
@@ -26,7 +29,13 @@ function Test-ComputerReachability {
     }
 
     try {
-        Test-WSMan -ComputerName $ComputerName -ErrorAction Stop | Out-Null
+        if ($Credential) {
+            Test-WSMan -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop | Out-Null
+        }
+        else {
+            Test-WSMan -ComputerName $ComputerName -ErrorAction Stop | Out-Null
+        }
+
         return [PSCustomObject]@{
             ComputerName = $ComputerName
             Reachable    = $true
@@ -80,12 +89,13 @@ function Get-EmbeddedAuditSource {
 function Invoke-ComputerAudit {
     param(
         [string]$ComputerName,
-        [string[]]$Checks
+        [string[]]$Checks,
+        [pscredential]$Credential
     )
 
     Import-SecurityChecksModule
 
-    $probe = Test-ComputerReachability -ComputerName $ComputerName
+    $probe = Test-ComputerReachability -ComputerName $ComputerName -Credential $Credential
     if (-not $probe.Reachable) {
         return [PSCustomObject]@{
             ComputerName = $ComputerName
@@ -126,7 +136,18 @@ param(
 Invoke-SelectedChecks -ComputerName `$RemoteComputerName -Checks `$RemoteChecks
 "@
 
-    $results = Invoke-Command -ComputerName $ComputerName -ScriptBlock ([scriptblock]::Create($remoteScript)) -ArgumentList $ComputerName, (,$Checks) -ErrorAction Stop
+    $invokeParams = @{
+        ComputerName = $ComputerName
+        ScriptBlock  = [scriptblock]::Create($remoteScript)
+        ArgumentList = $ComputerName, (,$Checks)
+        ErrorAction  = "Stop"
+    }
+
+    if ($Credential) {
+        $invokeParams.Credential = $Credential
+    }
+
+    $results = Invoke-Command @invokeParams
 
     [PSCustomObject]@{
         ComputerName = $ComputerName

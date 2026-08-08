@@ -9,16 +9,19 @@ Open op elke VM een **PowerShell als administrator** en voer het juiste script u
 ```powershell
 Set-Location C:\Users\student\Documents\SCP
 .\VmProfiles\Set-DemoBaseline.ps1
+Restart-Computer
 ```
 
 ```powershell
 Set-Location C:\Users\student\Documents\SCP
 .\VmProfiles\Set-DemoRemoteAudit.ps1
+Restart-Computer
 ```
 
 ```powershell
 Set-Location C:\Users\student\Documents\SCP
 .\VmProfiles\Set-DemoLowSpec.ps1
+Restart-Computer
 ```
 
 ## Aanbevolen mapping
@@ -29,6 +32,20 @@ Set-Location C:\Users\student\Documents\SCP
 
 ## Verwachte verschillen
 
-- `baseline`: grotendeels compliant
-- `remote-audit`: extra lokale administrator + zwakkere password policy
-- `low-spec`: firewall uit, WinRM uit, Windows Update uit, zwakke password policy
+- `baseline`: sterkste systeem, WinRM correct geconfigureerd, langere password policy
+- `remote-audit`: bereikbaar via WinRM maar met extra administrators en zwakkere password policy
+- `low-spec`: duidelijk onveiliger met firewall uit, Windows Update uit, guest account aan, extra admins, zwakke password policy
+
+## Demo van meerdere systemen
+
+Gebruik op de controller-VM (`baseline`) een gedeeld audit-account op alle machines:
+
+- gebruiker: `auditdemo`
+- wachtwoord: `AuditDemo!2026`
+
+Start de audit op `baseline` met:
+
+```powershell
+$cred = Get-Credential .\auditdemo
+.\Start-Audit.ps1 -Credential $cred
+```

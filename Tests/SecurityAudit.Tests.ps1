@@ -191,7 +191,9 @@ Describe "TUI helpers" {
         $defaults.ProjectRoot | Should -Be $projectRoot
         $defaults.AvailableChecks.Count | Should -Be 13
         $defaults.DefaultChecks | Should -Contain "Firewall"
-        $defaults.DefaultComputers | Should -Contain "localhost"
+        $defaults.DefaultComputers | Should -Contain "baseline"
+        $defaults.DefaultComputers | Should -Contain "remote-audit"
+        $defaults.DefaultComputers | Should -Contain "low-spec"
     }
 
     It "maakt tijdelijke invoerbestanden voor een TUI-run" {

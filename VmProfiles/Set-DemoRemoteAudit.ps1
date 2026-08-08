@@ -1,5 +1,9 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$ComputerName = "remote-audit",
+    [string]$AuditUser = "auditdemo",
+    [string]$AuditPassword = "AuditDemo!2026"
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -38,6 +42,8 @@ Assert-Administrator
 
 Write-Host "Applying remote-audit demo profile..." -ForegroundColor Cyan
 
+Rename-Computer -NewName $ComputerName -Force
+
 Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
 Enable-PSRemoting -Force
 Set-Service -Name "WinRM" -StartupType Automatic
@@ -46,7 +52,16 @@ Set-Service -Name "wuauserv" -StartupType Manual
 Start-Service -Name "wuauserv" -ErrorAction SilentlyContinue
 
 cmd /c "net accounts /minpwlen:8" | Out-Null
-Ensure-LocalUser -UserName "auditdemo" -Password "AuditDemo!2026"
+
+Ensure-LocalUser -UserName $AuditUser -Password $AuditPassword
+Ensure-LocalUser -UserName "helpdesk-temp" -Password "HelpdeskTemp!2026"
+
+try {
+    Add-MpPreference -ExclusionPath "C:\Temp" -ErrorAction SilentlyContinue
+}
+catch {
+}
 
 Write-Host "Remote-audit profile applied." -ForegroundColor Green
-Write-Host "Expected audit outcome: WinRM passes, LocalAdministrators warns, PasswordPolicy warns." -ForegroundColor Yellow
+Write-Host "Restart the VM before using it as a remote target." -ForegroundColor Yellow
+Write-Host "Expected audit outcome: mostly healthy, but weaker password policy and extra admins." -ForegroundColor Yellow
