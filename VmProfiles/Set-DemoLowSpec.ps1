@@ -38,13 +38,25 @@ function Ensure-LocalUser {
     Add-LocalGroupMember -Group "Administrators" -Member $UserName -ErrorAction SilentlyContinue
 }
 
+function Set-LabNetworkPrivate {
+    $profiles = Get-NetConnectionProfile -ErrorAction SilentlyContinue
+
+    foreach ($profile in $profiles) {
+        if ($profile.IPv4Connectivity -ne "Disconnected") {
+            Set-NetConnectionProfile -InterfaceIndex $profile.InterfaceIndex -NetworkCategory Private -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 Assert-Administrator
 
 Write-Host "Applying low-spec demo profile..." -ForegroundColor Cyan
 
 Rename-Computer -NewName $ComputerName -Force
 
-Enable-PSRemoting -Force
+Set-LabNetworkPrivate
+Enable-PSRemoting -SkipNetworkProfileCheck -Force
+Enable-NetFirewallRule -DisplayGroup "Windows Remote Management" -ErrorAction SilentlyContinue
 Set-Service -Name "WinRM" -StartupType Automatic
 Start-Service -Name "WinRM"
 
@@ -55,7 +67,7 @@ Ensure-LocalUser -UserName "labadmin2" -Password "LabAdmin2!2026"
 cmd /c "net accounts /minpwlen:0" | Out-Null
 
 Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled False
-
+New-NetFirewallRule -DisplayName "Allow WinRM 5985 for lab" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5985 -Profile Any -ErrorAction SilentlyContinue | Out-Null
 Set-Service -Name "wuauserv" -StartupType Disabled
 Stop-Service -Name "wuauserv" -Force -ErrorAction SilentlyContinue
 
@@ -77,4 +89,4 @@ catch {
 
 Write-Host "Low-spec profile applied." -ForegroundColor Green
 Write-Host "Restart the VM before using it as a remote target." -ForegroundColor Yellow
-Write-Host "Expected audit outcome: obvious failures and warnings across several checks." -ForegroundColor Yellow
+Write-Host "Expected audit outcome: obvious failures and warnings across several checks, while remaining remotely reachable." -ForegroundColor Yellow

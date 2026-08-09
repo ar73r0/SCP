@@ -49,3 +49,5 @@ Start de audit op `baseline` met:
 $cred = Get-Credential .\auditdemo
 .\Start-Audit.ps1 -Credential $cred
 ```
+
+Als `Test-WSMan` na de eerste reboot nog faalt, voer het profielscript nog eens uit op de doel-VM en herstart daarna opnieuw. De scripts zetten nu de lab-NIC expliciet op `Private` en openen WinRM ook wanneer Windows die NIC eerst als `Public` zag.

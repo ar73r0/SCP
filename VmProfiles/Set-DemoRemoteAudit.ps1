@@ -38,6 +38,16 @@ function Ensure-LocalUser {
     Add-LocalGroupMember -Group "Administrators" -Member $UserName -ErrorAction SilentlyContinue
 }
 
+function Set-LabNetworkPrivate {
+    $profiles = Get-NetConnectionProfile -ErrorAction SilentlyContinue
+
+    foreach ($profile in $profiles) {
+        if ($profile.IPv4Connectivity -ne "Disconnected") {
+            Set-NetConnectionProfile -InterfaceIndex $profile.InterfaceIndex -NetworkCategory Private -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 Assert-Administrator
 
 Write-Host "Applying remote-audit demo profile..." -ForegroundColor Cyan
@@ -45,7 +55,9 @@ Write-Host "Applying remote-audit demo profile..." -ForegroundColor Cyan
 Rename-Computer -NewName $ComputerName -Force
 
 Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
-Enable-PSRemoting -Force
+Set-LabNetworkPrivate
+Enable-PSRemoting -SkipNetworkProfileCheck -Force
+Enable-NetFirewallRule -DisplayGroup "Windows Remote Management" -ErrorAction SilentlyContinue
 Set-Service -Name "WinRM" -StartupType Automatic
 Start-Service -Name "WinRM"
 Set-Service -Name "wuauserv" -StartupType Manual

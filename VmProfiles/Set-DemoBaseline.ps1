@@ -30,6 +30,16 @@ function Start-ServiceSafe {
     Start-Service -Name $Name -ErrorAction SilentlyContinue
 }
 
+function Set-LabNetworkPrivate {
+    $profiles = Get-NetConnectionProfile -ErrorAction SilentlyContinue
+
+    foreach ($profile in $profiles) {
+        if ($profile.IPv4Connectivity -ne "Disconnected") {
+            Set-NetConnectionProfile -InterfaceIndex $profile.InterfaceIndex -NetworkCategory Private -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Ensure-LocalUser {
     param(
         [Parameter(Mandatory)]
@@ -59,7 +69,9 @@ Write-Host "Applying baseline demo profile..." -ForegroundColor Cyan
 Rename-Computer -NewName $ComputerName -Force
 
 Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
-Enable-PSRemoting -Force
+Set-LabNetworkPrivate
+Enable-PSRemoting -SkipNetworkProfileCheck -Force
+Enable-NetFirewallRule -DisplayGroup "Windows Remote Management" -ErrorAction SilentlyContinue
 Start-ServiceSafe -Name "WinRM" -StartupType "Automatic"
 Start-ServiceSafe -Name "wuauserv" -StartupType "Manual"
 Start-ServiceSafe -Name "MpsSvc" -StartupType "Automatic"
