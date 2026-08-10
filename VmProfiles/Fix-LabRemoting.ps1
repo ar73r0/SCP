@@ -9,6 +9,10 @@ param(
 
     [string]$SharedPassword = "AuditDemo!2026",
 
+    [switch]$EnableBuiltinAdministrator,
+
+    [string]$BuiltinAdministratorPassword = "AdminDemo!2026",
+
     [string[]]$TrustedHosts = @("remote-audit", "low-spec", "192.168.122.138", "192.168.122.139")
 )
 
@@ -61,6 +65,30 @@ function Ensure-LocalAdminUser {
 
     Enable-LocalUser -Name $UserName -ErrorAction SilentlyContinue
     Add-LocalGroupMember -Group "Administrators" -Member $UserName -ErrorAction SilentlyContinue
+    Add-LocalGroupMember -Group "Remote Management Users" -Member $UserName -ErrorAction SilentlyContinue
+}
+
+function Enable-BuiltInAdministrator {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Password
+    )
+
+    if (-not (Get-Command Get-LocalUser -ErrorAction SilentlyContinue)) {
+        return
+    }
+
+    $adminUser = Get-LocalUser -Name "Administrator" -ErrorAction SilentlyContinue
+    if (-not $adminUser) {
+        return
+    }
+
+    $adsi = [ADSI]"WinNT://$env:COMPUTERNAME/Administrator,user"
+    $adsi.SetPassword($Password)
+    $adsi.SetInfo()
+
+    Enable-LocalUser -Name "Administrator" -ErrorAction SilentlyContinue
+    Add-LocalGroupMember -Group "Remote Management Users" -Member "Administrator" -ErrorAction SilentlyContinue
 }
 
 function Set-ConnectedNetworksPrivate {
@@ -157,10 +185,17 @@ if ($ComputerName -and $ComputerName -ne $env:COMPUTERNAME) {
 
 Ensure-LocalAdminUser -UserName $SharedUser -Password $SharedPassword
 
+if ($EnableBuiltinAdministrator) {
+    Enable-BuiltInAdministrator -Password $BuiltinAdministratorPassword
+}
+
 if ($Role -eq "Target") {
     Enable-WinRmTarget
     Write-Host "Target remoting settings repaired." -ForegroundColor Green
     Write-Host "Use this shared account from baseline: $SharedUser / $SharedPassword" -ForegroundColor Yellow
+    if ($EnableBuiltinAdministrator) {
+        Write-Host "Built-in Administrator enabled with password: $BuiltinAdministratorPassword" -ForegroundColor Yellow
+    }
 }
 else {
     Set-ConnectedNetworksPrivate
