@@ -30,7 +30,7 @@ function Test-ComputerReachability {
 
     try {
         if ($Credential) {
-            Test-WSMan -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop | Out-Null
+            Test-WSMan -ComputerName $ComputerName -Credential $Credential -Authentication Negotiate -ErrorAction Stop | Out-Null
         }
         else {
             Test-WSMan -ComputerName $ComputerName -ErrorAction Stop | Out-Null
@@ -145,6 +145,7 @@ Invoke-SelectedChecks -ComputerName `$RemoteComputerName -Checks `$RemoteChecks
 
     if ($Credential) {
         $invokeParams.Credential = $Credential
+        $invokeParams.Authentication = "Negotiate"
     }
 
     $results = Invoke-Command @invokeParams
