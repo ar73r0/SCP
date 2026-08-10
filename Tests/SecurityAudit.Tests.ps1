@@ -117,10 +117,10 @@ Describe "Audit runner" {
         $command.Parameters.Keys | Should -Contain "Lab"
     }
 
-    It "biedt de labpreset ook via de TUI launcher aan" {
+    It "houdt verbindingsinstellingen uit de TUI launcher" {
         $command = Get-Command (Join-Path $projectRoot "Start-AuditTui.ps1")
 
-        $command.Parameters.Keys | Should -Contain "Lab"
+        $command.Parameters.Keys | Should -Not -Contain "Lab"
     }
 }
 
@@ -316,7 +316,7 @@ param(
 }
 '@ | Set-Content (Join-Path $fakeProjectRoot "Start-Audit.ps1") -Encoding UTF8
 
-        $result = Invoke-TuiAuditRun -ProjectRoot $fakeProjectRoot -ComputerNames @("lab-target") -Checks @("Firewall") -OutputRoot $TestDrive -Lab
+        $result = Invoke-TuiAuditRun -ProjectRoot $fakeProjectRoot -ComputerNames @("lab-target") -Checks @("Firewall") -OutputRoot $TestDrive
 
         $result.AuditResult.Lab | Should -BeTrue
     }

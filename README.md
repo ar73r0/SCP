@@ -68,11 +68,7 @@ Start de TUI:
 .\Start-AuditTui.ps1
 ```
 
-Kies daarna `Lab WinRM HTTPS`, of sla die keuze direct over met:
-
-```powershell
-.\Start-AuditTui.ps1 -Lab
-```
+De TUI gebruikt automatisch de werkende labverbinding via WinRM HTTPS op poort `5986`. Voor afwijkende remotinginstellingen gebruik je de parameters van `Start-Audit.ps1`.
 
 ## Setup op Windows
 
