@@ -8,19 +8,19 @@ Open op elke VM een **PowerShell als administrator** en voer het juiste script u
 
 ```powershell
 Set-Location C:\Users\student\Documents\SCP
-.\VmProfiles\Set-DemoBaseline.ps1
+.\VmSetup\Set-DemoBaseline.ps1
 Restart-Computer
 ```
 
 ```powershell
 Set-Location C:\Users\student\Documents\SCP
-.\VmProfiles\Set-DemoRemoteAudit.ps1
+.\VmSetup\Set-DemoRemoteAudit.ps1
 Restart-Computer
 ```
 
 ```powershell
 Set-Location C:\Users\student\Documents\SCP
-.\VmProfiles\Set-DemoLowSpec.ps1
+.\VmSetup\Set-DemoLowSpec.ps1
 Restart-Computer
 ```
 
@@ -46,7 +46,7 @@ Gebruik op de controller-VM (`baseline`) een gedeeld audit-account op alle machi
 Start de audit op `baseline` met:
 
 ```powershell
-.\Start-LabAudit.ps1
+.\Start-Audit.ps1 -Lab
 ```
 
 Als `Test-WSMan` na de eerste reboot nog faalt, voer het profielscript nog eens uit op de doel-VM en herstart daarna opnieuw. De scripts zetten nu de lab-NIC expliciet op `Private` en openen WinRM ook wanneer Windows die NIC eerst als `Public` zag.
@@ -59,7 +59,7 @@ Op `remote-audit` en `low-spec`:
 
 ```powershell
 Set-Location C:\Users\student\Documents\SCP
-.\VmProfiles\Fix-LabRemoting.ps1 -Role Target
+.\VmSetup\Fix-LabRemoting.ps1 -Role Target
 Restart-Computer
 ```
 
@@ -67,7 +67,7 @@ Op `baseline`:
 
 ```powershell
 Set-Location C:\Users\student\Documents\SCP
-.\VmProfiles\Fix-LabRemoting.ps1 -Role Controller
+.\VmSetup\Fix-LabRemoting.ps1 -Role Controller
 Restart-Computer
 ```
 
@@ -76,10 +76,10 @@ Daarna op `baseline`:
 ```powershell
 Test-NetConnection 192.168.122.138 -Port 5986
 Test-NetConnection 192.168.122.139 -Port 5986
-.\Start-LabAudit.ps1
+.\Start-Audit.ps1 -Lab
 ```
 
-Gebruik voor de labdemo het ongekwalificeerde account `auditdemo`. De VM's zijn zonder Sysprep gekloond en hebben daardoor dezelfde machine-SID. Recente Windows 11-versies blokkeren NTLM tussen zulke klonen. Het labscript omzeilt dat specifieke cloneprobleem met Basic-authenticatie binnen WinRM HTTPS; wachtwoorden gaan dus niet onversleuteld over het netwerk.
+Gebruik voor de labdemo het ongekwalificeerde account `auditdemo`. De VM's zijn zonder Sysprep gekloond en hebben daardoor dezelfde machine-SID. Recente Windows 11-versies blokkeren NTLM tussen zulke klonen. De `-Lab`-preset omzeilt dat specifieke cloneprobleem met Basic-authenticatie binnen WinRM HTTPS; wachtwoorden gaan dus niet onversleuteld over het netwerk.
 
 ## Fallback zonder remote WinRM
 

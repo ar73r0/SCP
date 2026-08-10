@@ -12,7 +12,6 @@ Describe "Projectstructuur" {
         $required = @(
             "Setup-Project.ps1",
             "Start-Audit.ps1",
-            "Start-LabAudit.ps1",
             "Start-AuditTui.ps1",
             "Config/checks.json",
             "Config/computers.csv",
@@ -20,7 +19,12 @@ Describe "Projectstructuur" {
             "Modules/RemoteAudit.psm1",
             "Modules/Scoring.psm1",
             "Modules/Reporting.psm1",
-            "Modules/TUI.psm1"
+            "Modules/TUI.psm1",
+            "VmSetup/New-WindowsLabVm.ps1",
+            "VmSetup/Fix-LabRemoting.ps1",
+            "VmSetup/Set-DemoBaseline.ps1",
+            "VmSetup/Set-DemoRemoteAudit.ps1",
+            "VmSetup/Set-DemoLowSpec.ps1"
         )
 
         foreach ($path in $required) {
@@ -71,12 +75,27 @@ Describe "Compliance scoring" {
 
 Describe "Check catalogus" {
     It "kent alle verwachte checks" {
+        $expectedChecks = @(
+            "Firewall",
+            "Defender",
+            "SMBv1",
+            "UAC",
+            "GuestAccount",
+            "LocalAdministrators",
+            "PasswordPolicy",
+            "BitLocker",
+            "WindowsUpdates",
+            "CriticalServices",
+            "OpenPorts",
+            "SystemInfo",
+            "DiskSpace"
+        )
         $checks = Get-AvailableSecurityChecks
 
-        $checks.Count | Should -Be 13
-        $checks | Should -Contain "Firewall"
-        $checks | Should -Contain "BitLocker"
-        $checks | Should -Contain "DiskSpace"
+        $checks.Count | Should -Be $expectedChecks.Count
+        foreach ($expectedCheck in $expectedChecks) {
+            $checks | Should -Contain $expectedCheck
+        }
     }
 
     It "markeert onbekende checks als ongeldig" {
@@ -95,10 +114,24 @@ Describe "Audit runner" {
         $command.Parameters.Keys | Should -Contain "Authentication"
         $command.Parameters.Keys | Should -Contain "UseSSL"
         $command.Parameters.Keys | Should -Contain "Port"
+        $command.Parameters.Keys | Should -Contain "Lab"
+    }
+
+    It "biedt de labpreset ook via de TUI launcher aan" {
+        $command = Get-Command (Join-Path $projectRoot "Start-AuditTui.ps1")
+
+        $command.Parameters.Keys | Should -Contain "Lab"
     }
 }
 
 Describe "Remote audit embedding" {
+    It "gebruikt Test-WSMan met een fallback voor zelfondertekende labcertificaten" {
+        $source = (Get-Command Test-ComputerReachability).Definition
+
+        $source | Should -Match "Test-WSMan"
+        $source | Should -Match "New-PSSession"
+    }
+
     It "stuurt metadata helpers mee naar remote systemen" {
         $source = InModuleScope RemoteAudit {
             Get-EmbeddedAuditSource
@@ -150,6 +183,42 @@ Describe "HTML rapportage" {
         $content | Should -Match "&lt;script&gt;alert\(1\)&lt;/script&gt;"
         $content | Should -Match "Schakel alle Windows Firewall-profielen in"
         $content | Should -Match "Prioritaire acties"
+    }
+
+    It "toont geen aanbeveling voor geslaagde checks" {
+        $auditResults = @(
+            [PSCustomObject]@{
+                ComputerName = "pc1"
+                Reachable    = $true
+                IsLocal      = $true
+                Error        = $null
+                Results      = @(
+                    [PSCustomObject]@{
+                        ComputerName = "pc1"
+                        Name         = "Firewall"
+                        Status       = "Passed"
+                        Message      = "Alle firewallprofielen zijn ingeschakeld."
+                    }
+                )
+            }
+        )
+        $summary = @(
+            [PSCustomObject]@{
+                ComputerName = "pc1"
+                Passed       = 1
+                Warning      = 0
+                Failed       = 0
+                Skipped      = 0
+                Total        = 1
+                Score        = 100
+            }
+        )
+        $outFile = Join-Path $TestDrive "passed-report.html"
+
+        Write-AuditHtmlReport -AuditResults $auditResults -Summary $summary -Path $outFile
+        $content = Get-Content $outFile -Raw
+
+        $content | Should -Not -Match "Schakel alle Windows Firewall-profielen in"
     }
 
     It "toont onbereikbare systemen in een aparte sectie" {
@@ -225,5 +294,30 @@ Describe "TUI helpers" {
         $availability = Test-SpectreAvailability
 
         $availability | Should -BeOfType [bool]
+    }
+
+    It "stuurt de labpreset door naar de audit runner" {
+        $fakeProjectRoot = Join-Path $TestDrive "lab-project"
+        New-Item -ItemType Directory -Path $fakeProjectRoot -Force | Out-Null
+        @'
+param(
+    [string]$ComputerListPath,
+    [string]$ChecksConfigPath,
+    [string]$OutputRoot,
+    [switch]$Lab,
+    [switch]$PassThru
+)
+
+[PSCustomObject]@{
+    Lab            = $Lab.IsPresent
+    JsonLogPath    = $null
+    CsvLogPath     = $null
+    HtmlReportPath = $null
+}
+'@ | Set-Content (Join-Path $fakeProjectRoot "Start-Audit.ps1") -Encoding UTF8
+
+        $result = Invoke-TuiAuditRun -ProjectRoot $fakeProjectRoot -ComputerNames @("lab-target") -Checks @("Firewall") -OutputRoot $TestDrive -Lab
+
+        $result.AuditResult.Lab | Should -BeTrue
     }
 }

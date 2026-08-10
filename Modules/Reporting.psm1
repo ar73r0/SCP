@@ -117,7 +117,12 @@ function Write-AuditHtmlReport {
             $cssClass = $result.Status.ToLowerInvariant()
             $badgeClass = Get-StatusBadgeClass -Status $result.Status
             $severity = ConvertTo-HtmlSafeText (Get-ReportSeverity -CheckName $result.Name)
-            $recommendation = ConvertTo-HtmlSafeText (Get-ReportRecommendation -CheckName $result.Name)
+            $recommendation = if ($result.Status -eq "Passed") {
+                ""
+            }
+            else {
+                ConvertTo-HtmlSafeText (Get-ReportRecommendation -CheckName $result.Name)
+            }
             $message = ConvertTo-HtmlSafeText $result.Message
             "<tr class='$cssClass'><td>$(ConvertTo-HtmlSafeText $result.ComputerName)</td><td>$(ConvertTo-HtmlSafeText $result.Name)</td><td><span class='status-badge $badgeClass'>$(ConvertTo-HtmlSafeText $result.Status)</span></td><td>$severity</td><td>$message</td><td>$recommendation</td></tr>"
         }

@@ -86,14 +86,23 @@ function Test-ComputerReachability {
             -UseSSL:$UseSSL `
             -SkipCertificateCheck:$SkipCertificateCheck
 
-        $session = New-PSSession @sessionParameters
-        Remove-PSSession -Session $session
+        $probeMethod = "Test-WSMan"
+        if ((Get-Command Test-WSMan -ErrorAction SilentlyContinue) -and -not $SkipCertificateCheck) {
+            Test-WSMan @sessionParameters | Out-Null
+        }
+        else {
+            # Test-WSMan cannot ignore self-signed certificate errors. A short
+            # PSSession probe preserves the encrypted HTTPS lab workflow.
+            $probeMethod = "PSSession"
+            $session = New-PSSession @sessionParameters
+            Remove-PSSession -Session $session
+        }
 
         return [PSCustomObject]@{
             ComputerName = $ComputerName
             Reachable    = $true
             IsLocal      = $false
-            Reason       = "WinRM bereikbaar"
+            Reason       = "WinRM bereikbaar via $probeMethod"
         }
     }
     catch {

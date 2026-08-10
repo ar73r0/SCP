@@ -28,12 +28,17 @@ function Test-CommandAvailable {
 function Install-ModuleIfMissing {
     param(
         [Parameter(Mandatory)]
-        [string]$Name
+        [string]$Name,
+
+        [version]$MinimumVersion = [version]"0.0"
     )
 
-    $installed = Get-Module -ListAvailable -Name $Name | Select-Object -First 1
+    $installed = Get-Module -ListAvailable -Name $Name |
+        Where-Object { $_.Version -ge $MinimumVersion } |
+        Sort-Object Version -Descending |
+        Select-Object -First 1
     if ($installed) {
-        Write-Host "$Name is al geinstalleerd." -ForegroundColor Green
+        Write-Host "$Name $($installed.Version) is al geinstalleerd." -ForegroundColor Green
         return
     }
 
@@ -42,8 +47,19 @@ function Install-ModuleIfMissing {
     }
 
     Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-    Install-Module -Name $Name -Scope CurrentUser -Force -SkipPublisherCheck
-    Write-Host "$Name werd geinstalleerd in CurrentUser scope." -ForegroundColor Green
+    $installParameters = @{
+        Name               = $Name
+        Scope              = "CurrentUser"
+        Force              = $true
+        SkipPublisherCheck = $true
+    }
+
+    if ($MinimumVersion -gt [version]"0.0") {
+        $installParameters.MinimumVersion = $MinimumVersion
+    }
+
+    Install-Module @installParameters
+    Write-Host "$Name $MinimumVersion of hoger werd geinstalleerd in CurrentUser scope." -ForegroundColor Green
 }
 
 function Add-Utf8ProfileConfiguration {
@@ -99,7 +115,7 @@ if ($InstallPowerShell7) {
 
 if ($InstallPester) {
     Write-SetupStep -Message "Pester module"
-    Install-ModuleIfMissing -Name "Pester"
+    Install-ModuleIfMissing -Name "Pester" -MinimumVersion "5.0.0"
 }
 
 if ($InstallPwshSpectreConsole) {

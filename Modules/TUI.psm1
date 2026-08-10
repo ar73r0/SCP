@@ -107,6 +107,7 @@ function Invoke-TuiAuditRun {
         [Parameter(Mandatory)]
         [string]$OutputRoot,
 
+        [switch]$Lab,
         [switch]$DisableParallel,
         [switch]$SkipHtmlReport
     )
@@ -119,6 +120,10 @@ function Invoke-TuiAuditRun {
         ChecksConfigPath = $session.ChecksConfigPath
         OutputRoot       = $OutputRoot
         PassThru         = $true
+    }
+
+    if ($Lab) {
+        $invokeParams.Lab = $true
     }
 
     if ($DisableParallel) {
@@ -221,7 +226,9 @@ function Read-BasicMultiSelection {
 function Start-BasicAuditTui {
     param(
         [Parameter(Mandatory)]
-        [string]$ProjectRoot
+        [string]$ProjectRoot,
+
+        [switch]$Lab
     )
 
     $defaults = Get-TuiAuditDefaults -ProjectRoot $ProjectRoot
@@ -247,6 +254,17 @@ function Start-BasicAuditTui {
     }
 
     $selectedChecks = Read-BasicMultiSelection -Prompt "Selecteer de checks die je wil uitvoeren" -Choices $defaults.AvailableChecks
+
+    $connectionChoice = if ($Lab) {
+        "Lab WinRM HTTPS"
+    }
+    else {
+        Read-BasicSelection -Prompt "Welke verbindingsinstellingen wil je gebruiken?" -Choices @(
+            "Lab WinRM HTTPS"
+            "Standaard WinRM"
+        )
+    }
+    $useLabPreset = ($connectionChoice -eq "Lab WinRM HTTPS")
 
     $outputMode = Read-BasicSelection -Prompt "Waar moeten logs en rapporten komen?" -Choices @(
         "Projectmap gebruiken"
@@ -277,6 +295,7 @@ function Start-BasicAuditTui {
     Write-Host "Audit samenvatting" -ForegroundColor Green
     Write-Host "Targets     : $($selectedComputers -join ', ')"
     Write-Host "Checks      : $($selectedChecks -join ', ')"
+    Write-Host "Verbinding  : $connectionChoice"
     Write-Host "Output      : $outputRoot"
     Write-Host "HTML report : $htmlChoice"
     Write-Host "Uitvoering  : $executionChoice"
@@ -291,7 +310,7 @@ function Start-BasicAuditTui {
         return
     }
 
-    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $selectedComputers -Checks $selectedChecks -OutputRoot $outputRoot -DisableParallel:$disableParallel -SkipHtmlReport:$skipHtmlReport
+    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $selectedComputers -Checks $selectedChecks -OutputRoot $outputRoot -Lab:$useLabPreset -DisableParallel:$disableParallel -SkipHtmlReport:$skipHtmlReport
 
     Write-Host ""
     Write-Host "Audit afgerond" -ForegroundColor Green
@@ -308,13 +327,15 @@ function Start-BasicAuditTui {
 
 function Start-SecurityAuditTui {
     param(
-        [string]$ProjectRoot
+        [string]$ProjectRoot,
+
+        [switch]$Lab
     )
 
     Import-TuiDependencies
 
     if (-not (Test-SpectreAvailability)) {
-        Start-BasicAuditTui -ProjectRoot $ProjectRoot
+        Start-BasicAuditTui -ProjectRoot $ProjectRoot -Lab:$Lab
         return
     }
 
@@ -347,6 +368,17 @@ function Start-SecurityAuditTui {
         Read-SpectreMultiSelection -Message "Selecteer de checks die je wil uitvoeren" -Choices $defaults.AvailableChecks -PageSize 8
     )
 
+    $connectionChoice = if ($Lab) {
+        "Lab WinRM HTTPS"
+    }
+    else {
+        Read-SpectreSelection -Message "Welke verbindingsinstellingen wil je gebruiken?" -Choices @(
+            "Lab WinRM HTTPS"
+            "Standaard WinRM"
+        )
+    }
+    $useLabPreset = ($connectionChoice -eq "Lab WinRM HTTPS")
+
     $outputMode = Read-SpectreSelection -Message "Waar moeten logs en rapporten komen?" -Choices @(
         "Projectmap gebruiken"
         "Aangepast pad invoeren"
@@ -374,6 +406,7 @@ function Start-SecurityAuditTui {
     Write-SpectreRule -Title "[green]Audit samenvatting[/]"
     Write-SpectreHost "Targets     : [green]$($selectedComputers -join ', ')[/]"
     Write-SpectreHost "Checks      : [green]$($selectedChecks -join ', ')[/]"
+    Write-SpectreHost "Verbinding  : [green]$connectionChoice[/]"
     Write-SpectreHost "Output      : [green]$outputRoot[/]"
     Write-SpectreHost "HTML report : [green]$htmlChoice[/]"
     Write-SpectreHost "Uitvoering  : [green]$executionChoice[/]"
@@ -393,7 +426,7 @@ function Start-SecurityAuditTui {
     }
 
     Write-SpectreRule -Title "[blue]Audit uitvoering[/]"
-    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $preparedSession.ComputerNames -Checks $preparedSession.Checks -OutputRoot $outputRoot -DisableParallel:$disableParallel -SkipHtmlReport:$skipHtmlReport
+    $result = Invoke-TuiAuditRun -ProjectRoot $ProjectRoot -ComputerNames $preparedSession.ComputerNames -Checks $preparedSession.Checks -OutputRoot $outputRoot -Lab:$useLabPreset -DisableParallel:$disableParallel -SkipHtmlReport:$skipHtmlReport
 
     Write-SpectreRule -Title "[green]Audit afgerond[/]"
     if ($result.GeneratedLogs.Count) {

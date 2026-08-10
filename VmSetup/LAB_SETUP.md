@@ -25,19 +25,19 @@ De helper gebruikt standaard een `e1000e` netwerkkaart en `sata` diskbus zodat W
 Controleer eerst het gegenereerde commando:
 
 ```powershell
-pwsh ./New-WindowsLabVm.ps1
+pwsh ./VmSetup/New-WindowsLabVm.ps1
 ```
 
 Maak daarna effectief een VM aan:
 
 ```powershell
-pwsh ./New-WindowsLabVm.ps1 -VmName wscp-win11-audit-01 -StartInstall
+pwsh ./VmSetup/New-WindowsLabVm.ps1 -VmName wscp-win11-audit-01 -StartInstall
 ```
 
 Expliciet toch met VirtIO testen:
 
 ```powershell
-pwsh ./New-WindowsLabVm.ps1 -VmName wscp-win11-virtio-01 -NetworkModel virtio -DiskBus virtio -StartInstall
+pwsh ./VmSetup/New-WindowsLabVm.ps1 -VmName wscp-win11-virtio-01 -NetworkModel virtio -DiskBus virtio -StartInstall
 ```
 
 ## Aanbevolen testopstelling
@@ -63,7 +63,7 @@ Met zo'n opstelling kan je de meerwaarde van de audit duidelijk aantonen in je r
 3. Voer `.\Setup-Project.ps1 -All` uit.
 4. Schakel remoting in met `Enable-PSRemoting -Force`.
 5. Vul `Config/computers.csv` aan met de te testen computers.
-6. Start `.\Start-Audit.ps1`.
+6. Start `.\Start-Audit.ps1 -Lab` voor de lab-VM's.
 7. Bewaar de gegenereerde JSON-, CSV- en HTML-bestanden.
 
 ## Aanbevolen bewijs voor de eindindiening
