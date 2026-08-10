@@ -114,7 +114,12 @@ Describe "Audit runner" {
         $command.Parameters.Keys | Should -Contain "Authentication"
         $command.Parameters.Keys | Should -Contain "UseSSL"
         $command.Parameters.Keys | Should -Contain "Port"
-        $command.Parameters.Keys | Should -Contain "Lab"
+        $command.Parameters.Keys | Should -Not -Contain "Lab"
+
+        $source = Get-Content (Join-Path $projectRoot "Start-Audit.ps1") -Raw
+        $source | Should -Match '\[string\]\$Authentication\s*=\s*"Basic"'
+        $source | Should -Match '\[int\]\$Port\s*=\s*5986'
+        $source | Should -Match '\[switch\]\$UseSSL\s*=\s*\$true'
     }
 
     It "houdt verbindingsinstellingen uit de TUI launcher" {
@@ -296,7 +301,7 @@ Describe "TUI helpers" {
         $availability | Should -BeOfType [bool]
     }
 
-    It "stuurt de labpreset door naar de audit runner" {
+    It "start de audit runner zonder extra verbindingskeuze" {
         $fakeProjectRoot = Join-Path $TestDrive "lab-project"
         New-Item -ItemType Directory -Path $fakeProjectRoot -Force | Out-Null
         @'
@@ -304,12 +309,11 @@ param(
     [string]$ComputerListPath,
     [string]$ChecksConfigPath,
     [string]$OutputRoot,
-    [switch]$Lab,
     [switch]$PassThru
 )
 
 [PSCustomObject]@{
-    Lab            = $Lab.IsPresent
+    Started        = $true
     JsonLogPath    = $null
     CsvLogPath     = $null
     HtmlReportPath = $null
@@ -318,6 +322,6 @@ param(
 
         $result = Invoke-TuiAuditRun -ProjectRoot $fakeProjectRoot -ComputerNames @("lab-target") -Checks @("Firewall") -OutputRoot $TestDrive
 
-        $result.AuditResult.Lab | Should -BeTrue
+        $result.AuditResult.Started | Should -BeTrue
     }
 }

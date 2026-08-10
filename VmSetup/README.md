@@ -46,7 +46,7 @@ Gebruik op de controller-VM (`baseline`) een gedeeld audit-account op alle machi
 Start de audit op `baseline` met:
 
 ```powershell
-.\Start-Audit.ps1 -Lab
+.\Start-Audit.ps1
 ```
 
 Als `Test-WSMan` na de eerste reboot nog faalt, voer het profielscript nog eens uit op de doel-VM en herstart daarna opnieuw. De scripts zetten nu de lab-NIC expliciet op `Private` en openen WinRM ook wanneer Windows die NIC eerst als `Public` zag.
@@ -76,10 +76,10 @@ Daarna op `baseline`:
 ```powershell
 Test-NetConnection 192.168.122.138 -Port 5986
 Test-NetConnection 192.168.122.139 -Port 5986
-.\Start-Audit.ps1 -Lab
+.\Start-Audit.ps1
 ```
 
-Gebruik voor de labdemo het ongekwalificeerde account `auditdemo`. De VM's zijn zonder Sysprep gekloond en hebben daardoor dezelfde machine-SID. Recente Windows 11-versies blokkeren NTLM tussen zulke klonen. De `-Lab`-preset omzeilt dat specifieke cloneprobleem met Basic-authenticatie binnen WinRM HTTPS; wachtwoorden gaan dus niet onversleuteld over het netwerk.
+Gebruik voor de labdemo het ongekwalificeerde account `auditdemo`. De VM's zijn zonder Sysprep gekloond en hebben daardoor dezelfde machine-SID. Recente Windows 11-versies blokkeren NTLM tussen zulke klonen. De standaardverbinding omzeilt dat specifieke cloneprobleem met Basic-authenticatie binnen WinRM HTTPS; wachtwoorden gaan dus niet onversleuteld over het netwerk.
 
 ## Fallback zonder remote WinRM
 

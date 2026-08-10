@@ -121,8 +121,6 @@ function Invoke-TuiAuditRun {
         PassThru         = $true
     }
 
-    $invokeParams.Lab = $true
-
     if ($DisableParallel) {
         $invokeParams.DisableParallel = $true
     }

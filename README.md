@@ -45,10 +45,10 @@ Start de audit met de standaardconfiguratie:
 Start de drie vooraf geconfigureerde lab-VM's via WinRM HTTPS:
 
 ```powershell
-.\Start-Audit.ps1 -Lab
+.\Start-Audit.ps1
 ```
 
-Dit gebruikt het gedeelde lokale account `auditdemo` via Basic-authenticatie binnen een versleutelde HTTPS-verbinding op poort `5986`. De zelfondertekende labcertificaten worden bewust zonder CA-validatie gebruikt.
+Dit gebruikt standaard het gedeelde lokale account `auditdemo` via Basic-authenticatie binnen een versleutelde HTTPS-verbinding op poort `5986`. De zelfondertekende labcertificaten worden bewust zonder CA-validatie gebruikt.
 
 Gebruik eigen configuratiebestanden:
 

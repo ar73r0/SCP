@@ -47,7 +47,7 @@ Voer op de baseline-VM uit vanuit de projectmap:
 
 ```powershell
 pwsh -File .\Setup-Project.ps1 -All
-pwsh -File .\Start-Audit.ps1 -Lab
+pwsh -File .\Start-Audit.ps1
 pwsh -File .\Start-AuditTui.ps1
 pwsh -Command "Invoke-Pester -Path .\Tests -Output Detailed"
 ```

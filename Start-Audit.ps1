@@ -7,12 +7,11 @@ param(
     [int]$ThrottleLimit = 5,
     [pscredential]$Credential,
     [ValidateSet("Default", "Basic", "Negotiate", "Kerberos", "Credssp", "Digest", "NegotiateWithImplicitCredential")]
-    [string]$Authentication = "Negotiate",
+    [string]$Authentication = "Basic",
     [ValidateRange(1, 65535)]
-    [int]$Port = 5985,
-    [switch]$UseSSL,
-    [switch]$SkipCertificateCheck,
-    [switch]$Lab,
+    [int]$Port = 5986,
+    [switch]$UseSSL = $true,
+    [switch]$SkipCertificateCheck = $true,
     [switch]$DisableParallel,
     [switch]$SkipHtmlReport,
     [switch]$PassThru
@@ -20,16 +19,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if ($Lab) {
-    if (-not $Credential) {
-        $labPassword = ConvertTo-SecureString "AuditDemo!2026" -AsPlainText -Force
-        $Credential = [pscredential]::new("auditdemo", $labPassword)
-    }
-
-    $Authentication = "Basic"
-    $Port = 5986
-    $UseSSL = $true
-    $SkipCertificateCheck = $true
+if (-not $Credential) {
+    $labPassword = ConvertTo-SecureString "AuditDemo!2026" -AsPlainText -Force
+    $Credential = [pscredential]::new("auditdemo", $labPassword)
 }
 
 function Invoke-AuditForComputer {
@@ -135,7 +127,6 @@ Write-Host "Start audit: $timestamp"
 Write-Host "Aantal computers: $($computers.Count)"
 Write-Host "Checks: $($checks -join ', ')"
 Write-Host "ThrottleLimit: $ThrottleLimit"
-Write-Host "Lab preset: $([bool]$Lab)"
 Write-Host "Remoting: $Authentication op poort $Port (SSL: $([bool]$UseSSL))"
 Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
 Write-Host ""

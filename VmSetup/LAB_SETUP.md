@@ -63,7 +63,7 @@ Met zo'n opstelling kan je de meerwaarde van de audit duidelijk aantonen in je r
 3. Voer `.\Setup-Project.ps1 -All` uit.
 4. Schakel remoting in met `Enable-PSRemoting -Force`.
 5. Vul `Config/computers.csv` aan met de te testen computers.
-6. Start `.\Start-Audit.ps1 -Lab` voor de lab-VM's.
+6. Start `.\Start-Audit.ps1` voor de lab-VM's.
 7. Bewaar de gegenereerde JSON-, CSV- en HTML-bestanden.
 
 ## Aanbevolen bewijs voor de eindindiening
