@@ -51,3 +51,36 @@ $cred = Get-Credential .\auditdemo
 ```
 
 Als `Test-WSMan` na de eerste reboot nog faalt, voer het profielscript nog eens uit op de doel-VM en herstart daarna opnieuw. De scripts zetten nu de lab-NIC expliciet op `Private` en openen WinRM ook wanneer Windows die NIC eerst als `Public` zag.
+
+## Snelle reparatie van WinRM
+
+Als remote-audit of low-spec nog altijd `Access is denied` of `TrustedHosts`-problemen geven, gebruik dan dit herstelscript.
+
+Op `remote-audit` en `low-spec`:
+
+```powershell
+Set-Location C:\Users\student\Documents\SCP
+.\VmProfiles\Fix-LabRemoting.ps1 -Role Target
+Restart-Computer
+```
+
+Op `baseline`:
+
+```powershell
+Set-Location C:\Users\student\Documents\SCP
+.\VmProfiles\Fix-LabRemoting.ps1 -Role Controller
+Restart-Computer
+```
+
+Daarna op `baseline`:
+
+```powershell
+$cred = Get-Credential
+# username: auditdemo
+# password: AuditDemo!2026
+Test-WSMan 192.168.122.138
+Test-WSMan 192.168.122.139
+.\Start-Audit.ps1 -Credential $cred
+```
+
+Gebruik voor de labdemo liever `auditdemo` dan `student`, zodat alle target-VM's exact dezelfde remote account en hetzelfde wachtwoord hebben.
