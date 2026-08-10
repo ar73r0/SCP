@@ -64,7 +64,19 @@ Ensure-LocalUser -UserName $AuditUser -Password $AuditPassword
 Ensure-LocalUser -UserName "labadmin1" -Password "LabAdmin1!2026"
 Ensure-LocalUser -UserName "labadmin2" -Password "LabAdmin2!2026"
 
+& (Join-Path $PSScriptRoot "Fix-LabRemoting.ps1") `
+    -Role Target `
+    -SharedUser $AuditUser `
+    -SharedPassword $AuditPassword
+
 cmd /c "net accounts /minpwlen:0" | Out-Null
+
+New-ItemProperty `
+    -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" `
+    -Name "EnableLUA" `
+    -PropertyType DWord `
+    -Value 0 `
+    -Force | Out-Null
 
 Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled False
 New-NetFirewallRule -DisplayName "Allow WinRM 5985 for lab" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5985 -Profile Any -ErrorAction SilentlyContinue | Out-Null

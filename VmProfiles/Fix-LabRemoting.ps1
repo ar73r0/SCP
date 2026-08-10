@@ -101,6 +101,48 @@ function Set-ConnectedNetworksPrivate {
     }
 }
 
+function Enable-WinRmHttpsListener {
+    $certificate = Get-ChildItem Cert:\LocalMachine\My |
+        Where-Object { $_.Subject -eq "CN=$env:COMPUTERNAME" -and $_.HasPrivateKey } |
+        Sort-Object NotAfter -Descending |
+        Select-Object -First 1
+
+    if (-not $certificate) {
+        $certificate = New-SelfSignedCertificate `
+            -DnsName $env:COMPUTERNAME `
+            -CertStoreLocation Cert:\LocalMachine\My `
+            -KeyLength 2048 `
+            -HashAlgorithm SHA256 `
+            -NotAfter (Get-Date).AddYears(5)
+    }
+
+    Get-ChildItem WSMan:\localhost\Listener |
+        Where-Object { $_.Keys -contains "Transport=HTTPS" } |
+        Remove-Item -Recurse -Force
+
+    New-Item `
+        -Path WSMan:\localhost\Listener `
+        -Transport HTTPS `
+        -Address * `
+        -Hostname $env:COMPUTERNAME `
+        -CertificateThumbPrint $certificate.Thumbprint `
+        -Force | Out-Null
+
+    $firewallRule = Get-NetFirewallRule -DisplayName "WSCP WinRM HTTPS 5986" -ErrorAction SilentlyContinue
+    if ($firewallRule) {
+        Enable-NetFirewallRule -DisplayName "WSCP WinRM HTTPS 5986"
+    }
+    else {
+        New-NetFirewallRule `
+            -DisplayName "WSCP WinRM HTTPS 5986" `
+            -Direction Inbound `
+            -Action Allow `
+            -Protocol TCP `
+            -LocalPort 5986 `
+            -Profile Any | Out-Null
+    }
+}
+
 function Enable-WinRmTarget {
     Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
     Set-ConnectedNetworksPrivate
@@ -123,8 +165,10 @@ function Enable-WinRmTarget {
     Set-Item WSMan:\localhost\Service\Auth\Basic -Value $true -Force
     Set-Item WSMan:\localhost\Service\Auth\Kerberos -Value $true -Force
     Set-Item WSMan:\localhost\Service\Auth\Negotiate -Value $true -Force
+    Set-Item WSMan:\localhost\Service\AllowUnencrypted -Value $false -Force
 
-    Restart-Service -Name "WinRM" -Force
+    Enable-WinRmHttpsListener
+    Start-Service -Name "WinRM" -ErrorAction SilentlyContinue
 }
 
 function Set-ControllerTrust {
@@ -140,6 +184,9 @@ function Set-ControllerTrust {
     if ($cleanHosts.Count -gt 0) {
         Set-Item WSMan:\localhost\Client\TrustedHosts -Value ($cleanHosts -join ",") -Force
     }
+
+    Set-Item WSMan:\localhost\Client\Auth\Basic -Value $true -Force
+    Set-Item WSMan:\localhost\Client\AllowUnencrypted -Value $false -Force
 }
 
 function Show-Verification {
@@ -172,6 +219,12 @@ function Show-Verification {
     }
     catch {
     }
+
+    try {
+        winrm enumerate winrm/config/listener
+    }
+    catch {
+    }
 }
 
 Assert-Administrator
@@ -191,7 +244,7 @@ if ($EnableBuiltinAdministrator) {
 
 if ($Role -eq "Target") {
     Enable-WinRmTarget
-    Write-Host "Target remoting settings repaired." -ForegroundColor Green
+    Write-Host "Target remoting settings repaired. HTTPS is listening on port 5986." -ForegroundColor Green
     Write-Host "Use this shared account from baseline: $SharedUser / $SharedPassword" -ForegroundColor Yellow
     if ($EnableBuiltinAdministrator) {
         Write-Host "Built-in Administrator enabled with password: $BuiltinAdministratorPassword" -ForegroundColor Yellow
@@ -210,4 +263,4 @@ else {
 Show-Verification
 
 Write-Host ""
-Write-Host "Restart this VM before testing remoting again." -ForegroundColor Yellow
+Write-Host "If the computer was renamed, restart this VM before testing remoting again." -ForegroundColor Yellow

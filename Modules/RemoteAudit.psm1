@@ -6,10 +6,59 @@ function Import-SecurityChecksModule {
     }
 }
 
+function New-RemoteSessionParameters {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ComputerName,
+
+        [pscredential]$Credential,
+
+        [string]$Authentication = "Negotiate",
+
+        [ValidateRange(1, 65535)]
+        [int]$Port = 5985,
+
+        [switch]$UseSSL,
+
+        [switch]$SkipCertificateCheck
+    )
+
+    $parameters = @{
+        ComputerName = $ComputerName
+        Port         = $Port
+        ErrorAction  = "Stop"
+    }
+
+    if ($Credential) {
+        $parameters.Credential = $Credential
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Authentication) -and $Authentication -ne "Default") {
+        $parameters.Authentication = $Authentication
+    }
+
+    if ($UseSSL) {
+        $parameters.UseSSL = $true
+    }
+
+    if ($SkipCertificateCheck) {
+        $parameters.SessionOption = New-PSSessionOption `
+            -SkipCACheck `
+            -SkipCNCheck `
+            -SkipRevocationCheck
+    }
+
+    $parameters
+}
+
 function Test-ComputerReachability {
     param(
         [string]$ComputerName,
-        [pscredential]$Credential
+        [pscredential]$Credential,
+        [string]$Authentication = "Negotiate",
+        [int]$Port = 5985,
+        [switch]$UseSSL,
+        [switch]$SkipCertificateCheck
     )
 
     $localNames = @(
@@ -29,12 +78,16 @@ function Test-ComputerReachability {
     }
 
     try {
-        if ($Credential) {
-            Test-WSMan -ComputerName $ComputerName -Credential $Credential -Authentication Negotiate -ErrorAction Stop | Out-Null
-        }
-        else {
-            Test-WSMan -ComputerName $ComputerName -ErrorAction Stop | Out-Null
-        }
+        $sessionParameters = New-RemoteSessionParameters `
+            -ComputerName $ComputerName `
+            -Credential $Credential `
+            -Authentication $Authentication `
+            -Port $Port `
+            -UseSSL:$UseSSL `
+            -SkipCertificateCheck:$SkipCertificateCheck
+
+        $session = New-PSSession @sessionParameters
+        Remove-PSSession -Session $session
 
         return [PSCustomObject]@{
             ComputerName = $ComputerName
@@ -58,6 +111,9 @@ function Get-EmbeddedAuditSource {
 
     $functionsToEmbed = @(
         "New-CheckResult",
+        "Test-IsWindowsAuditHost",
+        "Test-RequiredCommand",
+        "New-UnsupportedCheckResult",
         "Get-SecurityCheckCatalog",
         "Get-AvailableSecurityChecks",
         "Resolve-CheckMetadata",
@@ -90,12 +146,22 @@ function Invoke-ComputerAudit {
     param(
         [string]$ComputerName,
         [string[]]$Checks,
-        [pscredential]$Credential
+        [pscredential]$Credential,
+        [string]$Authentication = "Negotiate",
+        [int]$Port = 5985,
+        [switch]$UseSSL,
+        [switch]$SkipCertificateCheck
     )
 
     Import-SecurityChecksModule
 
-    $probe = Test-ComputerReachability -ComputerName $ComputerName -Credential $Credential
+    $probe = Test-ComputerReachability `
+        -ComputerName $ComputerName `
+        -Credential $Credential `
+        -Authentication $Authentication `
+        -Port $Port `
+        -UseSSL:$UseSSL `
+        -SkipCertificateCheck:$SkipCertificateCheck
     if (-not $probe.Reachable) {
         return [PSCustomObject]@{
             ComputerName = $ComputerName
@@ -125,28 +191,30 @@ function Invoke-ComputerAudit {
     }
 
     $source = Get-EmbeddedAuditSource
+    $checksJson = ConvertTo-Json -InputObject @($Checks) -Compress
+    $checksBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($checksJson))
     $remoteScript = @"
-$source
-
 param(
-    [string]`$RemoteComputerName,
-    [string[]]`$RemoteChecks
+    [string]`$RemoteComputerName
 )
 
+$source
+
+`$RemoteChecksJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("$checksBase64"))
+[string[]]`$RemoteChecks = (`$RemoteChecksJson | ConvertFrom-Json)
 Invoke-SelectedChecks -ComputerName `$RemoteComputerName -Checks `$RemoteChecks
 "@
 
-    $invokeParams = @{
-        ComputerName = $ComputerName
-        ScriptBlock  = [scriptblock]::Create($remoteScript)
-        ArgumentList = $ComputerName, (,$Checks)
-        ErrorAction  = "Stop"
-    }
+    $invokeParams = New-RemoteSessionParameters `
+        -ComputerName $ComputerName `
+        -Credential $Credential `
+        -Authentication $Authentication `
+        -Port $Port `
+        -UseSSL:$UseSSL `
+        -SkipCertificateCheck:$SkipCertificateCheck
 
-    if ($Credential) {
-        $invokeParams.Credential = $Credential
-        $invokeParams.Authentication = "Negotiate"
-    }
+    $invokeParams.ScriptBlock = [scriptblock]::Create($remoteScript)
+    $invokeParams.ArgumentList = $ComputerName
 
     $results = Invoke-Command @invokeParams
 

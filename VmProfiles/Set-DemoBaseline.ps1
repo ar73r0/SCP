@@ -91,6 +91,16 @@ if ($TrustedHosts.Count -gt 0) {
     Set-Item WSMan:\localhost\Client\TrustedHosts -Value ($TrustedHosts -join ",") -Force
 }
 
+& (Join-Path $PSScriptRoot "Fix-LabRemoting.ps1") `
+    -Role Controller `
+    -SharedUser $AuditUser `
+    -SharedPassword $AuditPassword `
+    -TrustedHosts $TrustedHosts
+
+# The controller runs its own checks locally, so the shared remote audit account
+# does not need administrative rights here.
+Remove-LocalGroupMember -Group "Administrators" -Member $AuditUser -ErrorAction SilentlyContinue
+
 Write-Host "Baseline profile applied." -ForegroundColor Green
 Write-Host "Restart the VM before using it as the audit controller." -ForegroundColor Yellow
 Write-Host "Expected audit outcome: strongest machine, mostly Passed." -ForegroundColor Yellow

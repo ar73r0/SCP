@@ -46,8 +46,7 @@ Gebruik op de controller-VM (`baseline`) een gedeeld audit-account op alle machi
 Start de audit op `baseline` met:
 
 ```powershell
-$cred = Get-Credential .\auditdemo
-.\Start-Audit.ps1 -Credential $cred
+.\Start-LabAudit.ps1
 ```
 
 Als `Test-WSMan` na de eerste reboot nog faalt, voer het profielscript nog eens uit op de doel-VM en herstart daarna opnieuw. De scripts zetten nu de lab-NIC expliciet op `Private` en openen WinRM ook wanneer Windows die NIC eerst als `Public` zag.
@@ -75,12 +74,29 @@ Restart-Computer
 Daarna op `baseline`:
 
 ```powershell
-$cred = Get-Credential
-# username: auditdemo
-# password: AuditDemo!2026
-Test-WSMan 192.168.122.138
-Test-WSMan 192.168.122.139
-.\Start-Audit.ps1 -Credential $cred
+Test-NetConnection 192.168.122.138 -Port 5986
+Test-NetConnection 192.168.122.139 -Port 5986
+.\Start-LabAudit.ps1
 ```
 
-Gebruik voor de labdemo liever `auditdemo` dan `student`, zodat alle target-VM's exact dezelfde remote account en hetzelfde wachtwoord hebben.
+Gebruik voor de labdemo het ongekwalificeerde account `auditdemo`. De VM's zijn zonder Sysprep gekloond en hebben daardoor dezelfde machine-SID. Recente Windows 11-versies blokkeren NTLM tussen zulke klonen. Het labscript omzeilt dat specifieke cloneprobleem met Basic-authenticatie binnen WinRM HTTPS; wachtwoorden gaan dus niet onversleuteld over het netwerk.
+
+## Fallback zonder remote WinRM
+
+Als remote auditing blijft blokkeren op `Access is denied`, gebruik dan deze demo-veilige fallback:
+
+Op elke VM afzonderlijk:
+
+```powershell
+Set-Location C:\Users\student\Documents\SCP
+.\Run-LocalAudit.ps1
+```
+
+Kopieer daarna de drie JSON logs uit `C:\Users\student\Documents\SCP\Logs\` naar `baseline` en merge ze daar:
+
+```powershell
+Set-Location C:\Users\student\Documents\SCP
+.\Merge-AuditLogs.ps1
+```
+
+De gecombineerde HTML komt in `C:\Users\student\Documents\SCP\Reports\`.

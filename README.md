@@ -9,6 +9,7 @@ Deze tool controleert één of meerdere Windows-computers op basis van een lijst
 De toepassing bevat:
 
 - een CLI-startscript via `Start-Audit.ps1`;
+- een labstartscript met versleutelde WinRM via `Start-LabAudit.ps1`;
 - een TUI-startscript via `Start-AuditTui.ps1`;
 - 13 ingebouwde security checks;
 - ondersteuning voor lokale en remote audits;
@@ -39,6 +40,14 @@ Start de audit met de standaardconfiguratie:
 ```powershell
 .\Start-Audit.ps1
 ```
+
+Start de drie vooraf geconfigureerde lab-VM's via WinRM HTTPS:
+
+```powershell
+.\Start-LabAudit.ps1
+```
+
+Dit gebruikt het gedeelde lokale account `auditdemo` via Basic-authenticatie binnen een versleutelde HTTPS-verbinding op poort `5986`. De zelfondertekende labcertificaten worden bewust zonder CA-validatie gebruikt.
 
 Gebruik eigen configuratiebestanden:
 

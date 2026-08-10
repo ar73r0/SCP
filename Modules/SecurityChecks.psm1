@@ -216,13 +216,35 @@ function Test-SMBv1Status {
         return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "SMBv1" -Reason "SMBv1-check vereist een Windows-host."
     }
 
-    if (-not (Test-RequiredCommand -Name "Get-WindowsOptionalFeature")) {
+    $windowsPowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+    $canQueryFeature = if ($PSVersionTable.PSEdition -eq "Core") {
+        Test-Path -LiteralPath $windowsPowerShell
+    }
+    else {
+        Test-RequiredCommand -Name "Get-WindowsOptionalFeature"
+    }
+
+    if (-not $canQueryFeature) {
         return New-UnsupportedCheckResult -ComputerName $ComputerName -Name "SMBv1" -Reason "Get-WindowsOptionalFeature is niet beschikbaar op deze host."
     }
 
     try {
-        $feature = Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -ErrorAction Stop
-        if ($feature.State -eq "Disabled") {
+        if ($PSVersionTable.PSEdition -eq "Core") {
+            # The DISM module is not reliable in PowerShell 7 parallel runspaces.
+            $state = & $windowsPowerShell `
+                -NoProfile `
+                -NonInteractive `
+                -Command "(Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -ErrorAction Stop).State.ToString()"
+
+            if ($LASTEXITCODE -ne 0) {
+                throw "Windows PowerShell kon de SMBv1-status niet bepalen."
+            }
+        }
+        else {
+            $state = (Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -ErrorAction Stop).State.ToString()
+        }
+
+        if ($state -eq "Disabled") {
             return New-CheckResult -ComputerName $ComputerName -Name "SMBv1" -Status "Passed" -Message "SMBv1 is uitgeschakeld."
         }
 
@@ -398,16 +420,24 @@ function Test-CriticalServicesStatus {
     }
 
     try {
-        $requiredServices = "MpsSvc", "WinDefend", "wuauserv", "WinRM"
-        $services = Get-Service -Name $requiredServices -ErrorAction Stop
-        $notRunning = @($services | Where-Object { $_.Status -ne "Running" })
+        $alwaysRunningNames = "MpsSvc", "WinDefend", "WinRM"
+        $services = Get-Service -Name ($alwaysRunningNames + "wuauserv") -ErrorAction Stop
+        $issues = @(
+            $services |
+                Where-Object { $_.Name -in $alwaysRunningNames -and $_.Status -ne "Running" } |
+                ForEach-Object { $_.Name }
+        )
 
-        if ($notRunning.Count -eq 0) {
-            return New-CheckResult -ComputerName $ComputerName -Name "CriticalServices" -Status "Passed" -Message "Alle kritieke services draaien."
+        $windowsUpdate = $services | Where-Object Name -eq "wuauserv"
+        if ($windowsUpdate.StartType -eq "Disabled") {
+            $issues += "wuauserv (uitgeschakeld)"
         }
 
-        $names = $notRunning.Name -join ", "
-        return New-CheckResult -ComputerName $ComputerName -Name "CriticalServices" -Status "Failed" -Message "Niet draaiende kritieke services: $names"
+        if ($issues.Count -eq 0) {
+            return New-CheckResult -ComputerName $ComputerName -Name "CriticalServices" -Status "Passed" -Message "Kritieke services zijn beschikbaar en Windows Update is niet uitgeschakeld."
+        }
+
+        return New-CheckResult -ComputerName $ComputerName -Name "CriticalServices" -Status "Failed" -Message "Problemen met kritieke services: $($issues -join ', ')"
     }
     catch {
         New-CheckResult -ComputerName $ComputerName -Name "CriticalServices" -Status "Skipped" -Message $_.Exception.Message

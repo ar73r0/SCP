@@ -12,6 +12,7 @@ Describe "Projectstructuur" {
         $required = @(
             "Setup-Project.ps1",
             "Start-Audit.ps1",
+            "Start-LabAudit.ps1",
             "Start-AuditTui.ps1",
             "Config/checks.json",
             "Config/computers.csv",
@@ -91,6 +92,9 @@ Describe "Audit runner" {
         $command = Get-Command (Join-Path $projectRoot "Start-Audit.ps1")
 
         $command.Parameters.Keys | Should -Contain "DisableParallel"
+        $command.Parameters.Keys | Should -Contain "Authentication"
+        $command.Parameters.Keys | Should -Contain "UseSSL"
+        $command.Parameters.Keys | Should -Contain "Port"
     }
 }
 
@@ -102,6 +106,9 @@ Describe "Remote audit embedding" {
 
         $source | Should -Match "function Get-SecurityCheckCatalog"
         $source | Should -Match "function Resolve-CheckMetadata"
+        $source | Should -Match "function Test-IsWindowsAuditHost"
+        $source | Should -Match "function Test-RequiredCommand"
+        $source | Should -Match "function New-UnsupportedCheckResult"
         $source | Should -Match "function Invoke-SelectedChecks"
     }
 }
@@ -192,8 +199,8 @@ Describe "TUI helpers" {
         $defaults.AvailableChecks.Count | Should -Be 13
         $defaults.DefaultChecks | Should -Contain "Firewall"
         $defaults.DefaultComputers | Should -Contain "baseline"
-        $defaults.DefaultComputers | Should -Contain "remote-audit"
-        $defaults.DefaultComputers | Should -Contain "low-spec"
+        $defaults.DefaultComputers | Should -Contain "192.168.122.138"
+        $defaults.DefaultComputers | Should -Contain "192.168.122.139"
     }
 
     It "maakt tijdelijke invoerbestanden voor een TUI-run" {

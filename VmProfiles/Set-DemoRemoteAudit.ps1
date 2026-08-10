@@ -60,7 +60,7 @@ Enable-PSRemoting -SkipNetworkProfileCheck -Force
 Enable-NetFirewallRule -DisplayGroup "Windows Remote Management" -ErrorAction SilentlyContinue
 Set-Service -Name "WinRM" -StartupType Automatic
 Start-Service -Name "WinRM"
-Set-Service -Name "wuauserv" -StartupType Manual
+Set-Service -Name "wuauserv" -StartupType Automatic
 Start-Service -Name "wuauserv" -ErrorAction SilentlyContinue
 
 cmd /c "net accounts /minpwlen:8" | Out-Null
@@ -73,6 +73,11 @@ try {
 }
 catch {
 }
+
+& (Join-Path $PSScriptRoot "Fix-LabRemoting.ps1") `
+    -Role Target `
+    -SharedUser $AuditUser `
+    -SharedPassword $AuditPassword
 
 Write-Host "Remote-audit profile applied." -ForegroundColor Green
 Write-Host "Restart the VM before using it as a remote target." -ForegroundColor Yellow

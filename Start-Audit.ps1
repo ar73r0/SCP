@@ -6,6 +6,12 @@ param(
     [ValidateRange(1, 64)]
     [int]$ThrottleLimit = 5,
     [pscredential]$Credential,
+    [ValidateSet("Default", "Basic", "Negotiate", "Kerberos", "Credssp", "Digest", "NegotiateWithImplicitCredential")]
+    [string]$Authentication = "Negotiate",
+    [ValidateRange(1, 65535)]
+    [int]$Port = 5985,
+    [switch]$UseSSL,
+    [switch]$SkipCertificateCheck,
     [switch]$DisableParallel,
     [switch]$SkipHtmlReport,
     [switch]$PassThru
@@ -21,12 +27,27 @@ function Invoke-AuditForComputer {
         [Parameter(Mandatory)]
         [string[]]$Checks,
 
-        [pscredential]$Credential
+        [pscredential]$Credential,
+
+        [string]$Authentication,
+
+        [int]$Port,
+
+        [switch]$UseSSL,
+
+        [switch]$SkipCertificateCheck
     )
 
     try {
         Write-Host "[$ComputerName] Audit gestart..."
-        Invoke-ComputerAudit -ComputerName $ComputerName -Checks $Checks -Credential $Credential
+        Invoke-ComputerAudit `
+            -ComputerName $ComputerName `
+            -Checks $Checks `
+            -Credential $Credential `
+            -Authentication $Authentication `
+            -Port $Port `
+            -UseSSL:$UseSSL `
+            -SkipCertificateCheck:$SkipCertificateCheck
     }
     catch {
         [PSCustomObject]@{
@@ -101,24 +122,48 @@ Write-Host "Start audit: $timestamp"
 Write-Host "Aantal computers: $($computers.Count)"
 Write-Host "Checks: $($checks -join ', ')"
 Write-Host "ThrottleLimit: $ThrottleLimit"
+Write-Host "Remoting: $Authentication op poort $Port (SSL: $([bool]$UseSSL))"
 Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
 Write-Host ""
 
 $supportsParallel = ($PSVersionTable.PSVersion.Major -ge 7) -and (-not $DisableParallel)
 if ($supportsParallel) {
     Write-Host "Uitvoering: parallel" -ForegroundColor DarkCyan
-    $computerResults = $computers | ForEach-Object -Parallel {
+
+    # Capture plain values instead of automatic variables and SwitchParameter
+    # instances, which are unreliable when PowerShell serializes runspace state.
+    $parallelProjectRoot = $PSScriptRoot
+    [string[]]$parallelChecks = $checks
+    $parallelCredential = $Credential
+    $parallelAuthentication = [string]$Authentication
+    $parallelPort = [int]$Port
+    $parallelUseSsl = [bool]$UseSSL
+    $parallelSkipCertificateCheck = [bool]$SkipCertificateCheck
+
+    $computerResults = @($computers | ForEach-Object -Parallel {
         $computerName = $_
-        $checksToRun = $using:checks
-        $projectRoot = $using:PSScriptRoot
-        $credentialToUse = $using:Credential
+        $checksToRun = $using:parallelChecks
+        $projectRoot = $using:parallelProjectRoot
+        $credentialToUse = $using:parallelCredential
+        $authenticationToUse = $using:parallelAuthentication
+        $portToUse = $using:parallelPort
+        $useSslForRemote = $using:parallelUseSsl
+        $skipCertificateValidation = $using:parallelSkipCertificateCheck
+        $ProgressPreference = "SilentlyContinue"
 
         Import-Module (Join-Path $projectRoot "Modules/SecurityChecks.psm1") -Force
         Import-Module (Join-Path $projectRoot "Modules/RemoteAudit.psm1") -Force
 
         try {
             Write-Host "[$computerName] Audit gestart..."
-            Invoke-ComputerAudit -ComputerName $computerName -Checks $checksToRun -Credential $credentialToUse
+            Invoke-ComputerAudit `
+                -ComputerName $computerName `
+                -Checks $checksToRun `
+                -Credential $credentialToUse `
+                -Authentication $authenticationToUse `
+                -Port $portToUse `
+                -UseSSL:$useSslForRemote `
+                -SkipCertificateCheck:$skipCertificateValidation
         }
         catch {
             [PSCustomObject]@{
@@ -136,7 +181,7 @@ if ($supportsParallel) {
                 )
             }
         }
-    } -ThrottleLimit $ThrottleLimit
+    } -ThrottleLimit $ThrottleLimit)
 }
 else {
     if ($DisableParallel) {
@@ -147,7 +192,14 @@ else {
     }
 
     $computerResults = foreach ($computerName in $computers) {
-        Invoke-AuditForComputer -ComputerName $computerName -Checks $checks -Credential $Credential
+        Invoke-AuditForComputer `
+            -ComputerName $computerName `
+            -Checks $checks `
+            -Credential $Credential `
+            -Authentication $Authentication `
+            -Port $Port `
+            -UseSSL:$UseSSL `
+            -SkipCertificateCheck:$SkipCertificateCheck
     }
 }
 
